@@ -44,7 +44,7 @@ export default defineConfig({
         short_name: 'AlexionCity',
         description: 'Live your life in a shared 3D city.',
         theme_color: '#ff7a1a',
-        background_color: '#0f1218',
+        background_color: '#1b2340',
         display: 'standalone',
         start_url: '/',
         icons: [
@@ -61,7 +61,7 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         // only the app shell is precached; model packs are cached by PackLoader so updates stay small
-        globPatterns: ['**/*.{js,css,html,svg,png,json}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,json,woff2}'],
         globIgnores: ['packs/**'],
         navigateFallbackDenylist: [/^\/packs\//],
       },

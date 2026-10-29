@@ -23,7 +23,7 @@ Client (`apps/client`, copy `.env.example` to `.env.local`; on a host, set these
 | `VITE_GAME_WS_URL`              | WebSocket address of the game server                                                         |
 | `VITE_ASSET_BASE`               | Where `manifest.json` and the packs are served from                                          |
 
-Game server (`apps/server`): `PORT`, and `ALLOWED_ORIGINS` (comma-separated page origins; required in production). When the server starts writing money in Phase 3 it also needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. **That secret key lives only in the server's environment. It never goes in the client, in git, or in chat.**
+Game server (`apps/server`): `PORT`, and `ALLOWED_ORIGINS` (comma-separated page origins; required in production). When the server starts writing money in Phase 3 it also needs `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (the `sb_secret_...` key, the newer name for the service-role key). **That secret key lives only in the server's environment. It never goes in the client or in git, and it should not be pasted into chat. Rotate it before launch, and straight away if anyone else can see the conversation.**
 
 ## Supabase setup (once)
 

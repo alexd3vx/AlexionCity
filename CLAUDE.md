@@ -12,7 +12,7 @@ Browser 3D life sim. Plan: `docs/ROADMAP.md`. Current phase checklist: `docs/PHA
 ## Rules
 
 - **Money and items change only through `apply_ledger` on the server.** Never add a client write path to `wallets`, `ledger` or `inventory`.
-- **No secrets in git or the client.** Only `VITE_` publishable values are allowed in `apps/client`; the Supabase service-role key lives in the game server's environment.
+- **No secrets in git or the client.** Only `VITE_` publishable values are allowed in `apps/client`; the Supabase secret key (`sb_secret_...`) lives only in the game server's environment (`apps/server/.env.local`, gitignored).
 - **Hosts are environment variables** (`docs/HOSTING.md`); do not hard-code URLs.
 - **Fictional brands by default.** No real brand names or logos in game content unless a sponsor contract says so.
 - **Every model needs a licence entry** in `assets-src/licences.json` before it ships; raw models stay out of git.

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { GAME_NAME } from '@alexioncity/shared';
 import { ensureGuest, type GuestSession } from './auth/guest';
 import { config } from './config';
 import { GameView } from './game/GameView';
 import { DownloadPage } from './ui/DownloadPage';
+import { Wordmark } from './ui/Wordmark';
 import { UpdateNotice } from './update/UpdateNotice';
 
 /**
@@ -24,7 +24,7 @@ export default function App() {
 
       <header className="pointer-events-none absolute inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex justify-center px-3">
         <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-full bg-white/90 px-4 py-2 text-sm font-bold text-slate-900 shadow-lg">
-          <span className="font-extrabold">{GAME_NAME}</span>
+          <Wordmark className="text-lg" />
           <span className="flex-1 truncate font-medium text-slate-500" data-testid="guest-status">
             {guest
               ? `Guest ${guest.id.slice(0, 6)} · ${guest.mode === 'supabase' ? 'online' : 'offline mode'}`

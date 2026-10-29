@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AlexionCity">
+  <polygon points="32,6 58,58 46,58 32,28 18,58 6,58" fill="#ff7a1a"/>
+  <circle cx="32" cy="33" r="3.6" fill="#ffb347"/>
+  <rect x="22" y="46" width="5" height="12" rx="1" fill="#fff3e0"/>
+  <rect x="29.5" y="38" width="5" height="20" rx="1" fill="#fff3e0"/>
+  <rect x="37" y="48" width="5" height="10" rx="1" fill="#fff3e0"/>
+</svg>
