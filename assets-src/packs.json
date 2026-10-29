@@ -1,0 +1,62 @@
+{
+  "packs": [
+    {
+      "id": "avatars",
+      "title": "Avatar parts",
+      "version": "1",
+      "required": true,
+      "include": ["modular-men/*", "modular-women/*"]
+    },
+    {
+      "id": "city-core",
+      "title": "City core",
+      "version": "1",
+      "required": true,
+      "include": [
+        "city-pack-1/Bus Stop.glb",
+        "city-pack-1/Bus.glb",
+        "city-pack-1/Car.glb",
+        "city-pack-1/Sports Car.glb",
+        "city-pack-1/SUV.glb",
+        "city-pack-1/Van.glb",
+        "city-pack-1/Pickup Truck.glb",
+        "city-pack-1/Traffic Light.glb",
+        "city-pack-1/Tree.glb",
+        "city-pack-1/Fire hydrant.glb",
+        "city-pack-1/Billboard.glb",
+        "city-pack-1/Bench.glb",
+        "city-pack-1/Trash Can.glb",
+        "city-pack-1/Cone.glb",
+        "city-pack-1/Pizza Corner.glb",
+        "city-pack-1/Building Green.glb",
+        "city-pack-1/Building Red.glb",
+        "city-pack-1/Brown Building.glb",
+        "city-pack-1/Big Building.glb"
+      ]
+    },
+    {
+      "id": "city-extras",
+      "title": "More buildings and vehicles",
+      "version": "1",
+      "required": false,
+      "ratio": 0.5,
+      "include": [
+        "city-pack-2/Apartment building.glb",
+        "city-pack-2/Bar.glb",
+        "city-pack-2/Hospital.glb",
+        "city-pack-2/Hotel Building.glb",
+        "city-pack-2/House with driveway.glb",
+        "city-pack-2/Large Building.glb",
+        "city-pack-2/Skyscraper.glb",
+        "city-pack-2/Convertible.glb"
+      ]
+    },
+    {
+      "id": "interiors",
+      "title": "Home and venue furniture",
+      "version": "1",
+      "required": false,
+      "include": ["furniture/*"]
+    }
+  ]
+}

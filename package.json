@@ -1,0 +1,31 @@
+{
+  "name": "alexioncity",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:client": "pnpm --filter @alexioncity/client dev",
+    "dev:server": "pnpm --filter @alexioncity/server dev",
+    "dev:admin": "pnpm --filter @alexioncity/admin dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "assets:validate": "pnpm --filter @alexioncity/asset-tools validate",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "assets:build": "pnpm --filter @alexioncity/asset-tools cli build --root ../../assets-src --out ../../packs-out --game-version 0.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}

@@ -1,0 +1,18 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# secrets: only the .example files are committed
+.env
+.env.*
+!.env.example
+
+# raw downloaded model packs stay out of git (large binaries); licences.json is tracked
+assets-src/raw/
+# built packs are published to the CDN, not committed
+packs-out/
+
+*.local
+.vite/

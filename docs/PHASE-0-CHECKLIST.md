@@ -1,49 +1,59 @@
 # Phase 0: Foundation checklist
 
-Goal: a deployable skeleton on the owner's VPS, an installable web app shell, and an asset pipeline that can turn the downloaded packs into versioned, licensed, compressed packs. Nothing here is done yet.
+Goal: a deployable skeleton, an installable web app shell, and an asset pipeline that turns the downloaded packs into versioned, licensed, compressed packs.
 
-**Gate:** deploys to a staging copy on the VPS; a guest opens the installable app; backups restore; CI is green; the asset pipeline builds a pack from the City Pack; the brand pack is approved.
+**Gate:** deploys to a staging copy; a guest opens the installable app; backups restore; CI is green; the asset pipeline builds a pack from the City Pack; the brand pack is approved.
+
+Status key: `[x]` done and tested here, `[~]` written but not exercised end to end, `[ ]` not done. Items that need your accounts or machines are marked **you**.
 
 ## Repo and tooling
 
-- [ ] pnpm workspace: `apps/client` (Vite, TypeScript, Three.js, React), `apps/server` (Node, TypeScript), `apps/admin`, `packages/shared`, `packages/asset-tools`
-- [ ] TypeScript strict config, ESLint, Prettier, Vitest, Playwright
-- [ ] CI that lints, type-checks, tests and builds every package
-- [ ] `CLAUDE.md` with repo conventions and commands
+- [x] pnpm workspace: `apps/client`, `apps/server`, `apps/admin`, `packages/shared`, `packages/asset-tools`
+- [x] TypeScript strict, ESLint, Prettier, Vitest (51 tests)
+- [~] CI workflow in `.github/workflows/ci.yml` (same commands pass locally; has not run on GitHub yet)
+- [x] `CLAUDE.md` with repo conventions and commands
+- [ ] Playwright end-to-end tests in the repo (the browser checks so far were one-off scripts)
 
 ## Hosting and backend
 
-- [ ] VPS baseline: non-root user, SSH keys only, firewall, Docker Compose, reverse proxy with automatic TLS
-- [ ] Self-hosted Supabase running (auth, Postgres, storage, realtime) with secrets kept out of the repo
-- [ ] Staging and production environments, domain, Cloudflare in front of assets
-- [ ] Daily offsite database backups and one practiced restore
+- [ ] **you** Static host for the client (for example Cloudflare Pages) with the `VITE_*` variables set; see `docs/HOSTING.md`
+- [x] Supabase project reachable with the publishable key; anonymous sign-ins on; the app starts as an online guest and reuses it on reload
+- [ ] **you** Run `supabase/migrations/20261029000000_init.sql` in the Supabase SQL Editor (tested on a local Postgres, not yet on your project)
+- [x] Data model v0: profiles, wallet, append-only ledger, inventory, row-level security, money writes only through `apply_ledger` (15 database checks)
+- [ ] **you** CAPTCHA and sign-up rate limits for anonymous sign-ins, before public launch
+- [ ] VPS baseline, reverse proxy with TLS, and staging and production environments (wait for the domain and the Phase 2 server)
+- [ ] Daily offsite backups and one practiced restore
 - [ ] Self-hosted analytics and error tracking
-- [ ] Data model v0: profiles, wallet ledger, inventory; row-level security; money writes only from the server
+- [~] Game server skeleton: health check, district channels of 100, speed checks, origin allow list, size and rate limits; runs standalone from one file (`apps/server/Dockerfile` not tested in a container)
 
 ## Client shell
 
-- [ ] Installable PWA: manifest, service worker, offline shell
-- [ ] Versioned asset-pack loader with IndexedDB cache and a download page
-- [ ] Update notice: animated "what's new" prompt, no page reload
-- [ ] Guest sign-in (Supabase anonymous auth) with a path to link Google, Apple or email later
-- [ ] Renderer scaffold: scene, chase camera, collision stub, device detection, Low and High quality tiers
+- [x] Installable PWA: manifest, service worker, icons (placeholders)
+- [x] Versioned asset-pack loader: downloads, hash-checks, caches, skips what is installed, fetches only changed files (tested in a real browser with the real packs)
+- [x] Downloads page for extra content
+- [x] Animated "what's new" update notice; Update now applies the update and reloads (tested by shipping a second version while the app was open)
+- [x] Guest sign-in with Supabase anonymous auth; falls back to offline mode without it
+- [x] Renderer scaffold: scene, chase camera, joystick and keyboard, collision, Low and High quality tiers (placeholder world)
+- [ ] Link a guest life to Google, Apple or email (Phase 2)
 
 ## Asset pipeline
 
-- [ ] `assets-src/` with a licence manifest (model, source page, author, licence) and a check that fails when an entry is missing
-- [ ] glTF pipeline: simplify heavy meshes, make distant versions, compress meshes and textures, build packs, write a manifest with hashes
-- [ ] Import City Pack parts 1 and 2, the Furniture Kit and the Modular Men and Women packs
-- [ ] Rework the four real-brand cars (Nissan 180MX, Dodge Challenger, Nissan GTR, Mitsubishi L200) into fictional cars
-- [ ] Credits screen generated from the manifest
-- [ ] Get or borrow a real 3 GB budget Android for performance tests
+- [x] `assets-src/licences.json` with all 231 models; validator fails on missing entries; CC-BY needs an author
+- [x] Optimizer (weld, simplify, dedupe, quantize, meshopt) and pack builder with a hash manifest; builds 4 packs in about 7 seconds
+- [x] Imported City Pack parts 1 and 2, Furniture Kit, Modular Men and Women packs
+- [ ] Verify each model's licence at its source page (all 231 are `user-attested`)
+- [ ] Rework the four real-brand cars into fictional cars (they are in the manifest but not in any pack)
+- [ ] Credits screen in the game, generated from the manifest (the generator exists; the screen does not)
+- [ ] Texture compression (KTX2), shared animation clips, lighter versions of heavy models; see `docs/ASSETS.md`
+- [ ] **you** A real 3 GB budget Android for performance tests
 
 ## Design and brand
 
-- [ ] Brand pack draft: logo, wordmark, palette, app icon, short style guide
-- [ ] HUD style exploration from the LagosLife screenshots, then pick one
-- [ ] Design tokens in `packages/shared`
+- [ ] Brand pack draft: logo, wordmark, palette, app icon, short style guide (in progress)
+- [ ] HUD style, chosen from the LagosLife screenshots (Phase 1)
+- [x] Design tokens file in `packages/shared` (placeholder values)
 
 ## Legal and safety groundwork
 
-- [ ] Draft terms of service, privacy policy and age gate text from templates; list the questions for a lawyer
+- [ ] Draft terms of service, privacy policy and age gate text from templates, with a list of questions for a lawyer
 - [ ] Moderation and report data model sketched for Phase 2

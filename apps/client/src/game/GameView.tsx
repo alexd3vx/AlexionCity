@@ -1,0 +1,103 @@
+import { useEffect, useRef } from 'react';
+import { pickQuality, readDeviceHints } from '../quality';
+import { Joystick } from '../ui/Joystick';
+import { createWorld, type World } from './world';
+
+/** Mounts the 3D world, wires keyboard and touch input, and drag-to-orbit on the canvas. */
+export function GameView() {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const world = useRef<World | null>(null);
+  const keys = useRef({ x: 0, y: 0, run: false, stickX: 0, stickY: 0 });
+
+  const push = () => {
+    const k = keys.current;
+    world.current?.setInput({ x: k.x + k.stickX, y: k.y + k.stickY, run: k.run });
+  };
+
+  useEffect(() => {
+    const el = canvas.current!;
+    const w = createWorld(el, pickQuality(readDeviceHints()));
+    world.current = w;
+
+    const fit = () => {
+      const r = box.current!.getBoundingClientRect();
+      w.resize(r.width, r.height);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(box.current!);
+
+    const key = (down: boolean) => (e: KeyboardEvent) => {
+      const k = keys.current;
+      const v = down ? 1 : 0;
+      switch (e.key.toLowerCase()) {
+        case 'w':
+        case 'arrowup':
+          k.y = v;
+          break;
+        case 's':
+        case 'arrowdown':
+          k.y = -v;
+          break;
+        case 'a':
+        case 'arrowleft':
+          k.x = -v;
+          break;
+        case 'd':
+        case 'arrowright':
+          k.x = v;
+          break;
+        case 'shift':
+          k.run = down;
+          break;
+        default:
+          return;
+      }
+      push();
+    };
+    const onDown = key(true);
+    const onUp = key(false);
+    addEventListener('keydown', onDown);
+    addEventListener('keyup', onUp);
+
+    let dragId: number | null = null;
+    let lastX = 0;
+    const pd = (e: PointerEvent) => ((dragId = e.pointerId), (lastX = e.clientX));
+    const pm = (e: PointerEvent) => {
+      if (e.pointerId !== dragId) return;
+      w.orbit(-(e.clientX - lastX) * 0.008);
+      lastX = e.clientX;
+    };
+    const pu = () => (dragId = null);
+    el.addEventListener('pointerdown', pd);
+    el.addEventListener('pointermove', pm);
+    el.addEventListener('pointerup', pu);
+
+    return () => {
+      removeEventListener('keydown', onDown);
+      removeEventListener('keyup', onUp);
+      el.removeEventListener('pointerdown', pd);
+      el.removeEventListener('pointermove', pm);
+      el.removeEventListener('pointerup', pu);
+      ro.disconnect();
+      w.dispose();
+      world.current = null;
+    };
+  }, []);
+
+  return (
+    <div ref={box} className="absolute inset-0 touch-none select-none">
+      <canvas ref={canvas} className="block h-full w-full" />
+      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-[max(1rem,env(safe-area-inset-left))]">
+        <Joystick
+          onChange={(x, y) => {
+            keys.current.stickX = x;
+            keys.current.stickY = y;
+            push();
+          }}
+        />
+      </div>
+    </div>
+  );
+}
