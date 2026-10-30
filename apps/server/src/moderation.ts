@@ -110,6 +110,7 @@ export function containsContactInfo(text: string): boolean {
 
 /** Trim, drop control characters, collapse spaces, and cut to the maximum length. */
 /** Control characters and invisible or direction-changing characters that can hide or reorder text. */
+// eslint-disable-next-line no-control-regex -- removing control characters is the point
 const HIDDEN = new RegExp(
   '[\\u0000-\\u001f\\u007f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f]',
   'g',

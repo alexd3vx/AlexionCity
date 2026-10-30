@@ -1,6 +1,6 @@
 import { createServer as createHttpServer, type Server } from 'node:http';
 import { WebSocketServer } from 'ws';
-import { GameServer } from './game';
+import type { GameServer } from './game';
 
 export interface ServerOptions {
   port: number;
