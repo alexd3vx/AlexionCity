@@ -62,6 +62,17 @@ PORT=8787 ALLOWED_ORIGINS=https://your-site.example node apps/server/dist/index.
 
 `apps/server/Dockerfile` wraps the same file in a container (not yet tested in a container runtime). Put a reverse proxy with automatic TLS in front of it so browsers can use `wss://`.
 
+## Putting the game on Vercel (to open it on a phone)
+
+Vercel serves the game page; it **cannot run the game server**, because it does not keep WebSocket connections open. So there are two parts:
+
+1. **The page, on Vercel.** Vercel, Add New, Project, pick the GitHub repo. `vercel.json` already sets the install and build commands and the output folder. Add these environment variables in the project settings: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_GAME_WS_URL` (the `wss://` address of your game server, below). Deploy, open the link on your phone.
+2. **The game server, somewhere that stays on.** Needs Node 22 and an `https` front (so the browser can use `wss://`). Set its `ALLOWED_ORIGINS` to your Vercel address, plus `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Your VPS is the best home; see "Game server" above for the free options and their catches.
+
+Without a game server the page still opens and you can walk around the city alone; chat, work, money and homes need the server.
+
+**The 3D models.** `packs-out/` is not in git, so a Vercel build from GitHub has no models and shows the default look. Either commit `packs-out/` (about 30 MB of optimised, CC0 models; the build copies it to `/packs` by itself) or host it elsewhere and point `VITE_ASSET_BASE` at it.
+
 ## Switching to your own domain
 
 When you buy a domain, change settings only:

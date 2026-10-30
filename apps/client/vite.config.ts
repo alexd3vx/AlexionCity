@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import { cpSync, createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
@@ -29,12 +29,30 @@ function devPacks(): Plugin {
   };
 }
 
+/**
+ * When the packs have been built (`pnpm assets:build`), a production build ships them next to the game at
+ * /packs, so a host that only serves files (Vercel, Cloudflare Pages) can serve them too. Without packs the
+ * game still builds and shows the default look.
+ */
+function bundlePacks(): Plugin {
+  const from = path.resolve(import.meta.dirname, '../../packs-out');
+  return {
+    name: 'alexion-bundle-packs',
+    apply: 'build',
+    closeBundle() {
+      if (existsSync(path.join(from, 'manifest.json')))
+        cpSync(from, path.resolve(import.meta.dirname, 'dist/packs'), { recursive: true });
+    },
+  };
+}
+
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [
     react(),
     tailwindcss(),
     devPacks(),
+    bundlePacks(),
     VitePWA({
       // "prompt" keeps the old version running until the player taps Update, so a live game is never reloaded under them
       registerType: 'prompt',
