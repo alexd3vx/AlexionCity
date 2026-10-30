@@ -11,6 +11,8 @@
     "dev:client": "pnpm --filter @alexioncity/client dev",
     "dev:server": "pnpm --filter @alexioncity/server dev",
     "dev:admin": "pnpm --filter @alexioncity/admin dev",
+    "dev": "pnpm --parallel --filter @alexioncity/client --filter @alexioncity/server dev",
+    "e2e": "node tools/e2e-multiplayer.mjs",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

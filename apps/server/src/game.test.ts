@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PROTOCOL_VERSION,
+  SPAWN,
   type AvatarSpec,
   type ClientMessage,
   type ServerMessage,
@@ -71,10 +72,9 @@ function rig() {
       district: 'downtown',
       avatar: AVATAR,
     });
-    if (at.x !== 0 || at.z !== 0) {
-      t += 60_000;
+    // the first position after joining is taken as the starting point
+    if (c.last('welcome'))
       await c.send({ t: 'move', seq: 1, x: at.x, z: at.z, yaw: 0, mode: 'run', motion: 'run' });
-    }
     return c;
   };
 
@@ -223,6 +223,37 @@ describe('seeing nearby players', () => {
     game.disconnect(bola.id);
     game.broadcast();
     expect(ada.last('peers')?.remove).toEqual([bola.id]);
+  });
+
+  it('puts a new player at the spawn until their first move, then takes that position as given', async () => {
+    const { Client, game } = rig();
+    const ada = new Client('Ada');
+    const bo = new Client('Bo');
+    for (const [c, name] of [
+      [ada, 'Ada'],
+      [bo, 'Bo'],
+    ] as const)
+      await c.send({
+        t: 'join',
+        v: PROTOCOL_VERSION,
+        token: `user:${name.toLowerCase()}`,
+        name,
+        district: 'downtown',
+        avatar: AVATAR,
+      });
+    game.broadcast();
+    expect(ada.last('peers')?.add[0]).toMatchObject({
+      x: SPAWN.x,
+      z: SPAWN.z,
+      yaw: Math.round(SPAWN.yaw * 100) / 100,
+    });
+
+    // a returning player reconnects far from the spawn: that is where they are, not a cheat
+    await bo.send({ t: 'move', seq: 1, x: -60, z: 40, yaw: 1, mode: 'walk', motion: 'idle' });
+    expect(bo.last('correct')).toBeUndefined();
+    game.broadcast();
+    const bobId = bo.last('welcome')!.id;
+    expect(ada.last('pos')?.u.find((u) => u[0] === bobId)).toMatchObject([bobId, -60, 40, 1, 0]);
   });
 
   it('snaps back a player who moves too fast or leaves the world', async () => {

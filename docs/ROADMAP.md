@@ -63,6 +63,8 @@ Each phase ends in a playable, tested build and must pass its gate before the ne
 - **Phase 0 Foundation:** built; see `PHASE-0-CHECKLIST.md`. Still needs a hosted staging copy and the migration run on Supabase.
 - **Phase 1 World:** built and tested here; see `PHASE-1-CHECKLIST.md`. Still needs a real-phone test and a yes on the HUD style.
 
+- **Phase 2 Multiplayer:** built and tested with two real browsers; see `PHASE-2-CHECKLIST.md` and how to try it in `TESTING.md`. Still needs a game server on an always-on host, a play test with real people, and provider login set up in Supabase.
+
 Assumption to confirm: launch is Phases 0 to 7; the "After launch" row ships as updates.
 
 ## Open items

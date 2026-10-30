@@ -1,17 +1,8 @@
-import type { AvatarCatalog, AvatarFrame, AvatarPart } from '@alexioncity/shared';
+import type { AvatarCatalog, AvatarFrame, AvatarPart, AvatarSpec } from '@alexioncity/shared';
 
 export const SLOTS: readonly AvatarPart[] = ['head', 'body', 'legs', 'feet'];
 
-/** What a player chose. Outfit ids refer to the catalog; `skin` and `hair` to the lists below. */
-export interface AvatarSpec {
-  frame: string;
-  head: string;
-  body: string;
-  legs: string;
-  feet: string;
-  skin: string;
-  hair: string;
-}
+export type { AvatarSpec };
 
 export interface Swatch {
   id: string;

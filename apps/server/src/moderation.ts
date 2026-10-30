@@ -85,7 +85,10 @@ function tokens(normalized: string): string[] {
       run += w;
       continue;
     }
-    if (run) (out.push(run), (run = ''));
+    if (run) {
+      out.push(run);
+      run = '';
+    }
     out.push(w);
   }
   if (run) out.push(run);
@@ -108,13 +111,13 @@ export function containsContactInfo(text: string): boolean {
   return /\d{7,}/.test(text.replace(/[\s().+-]/g, ''));
 }
 
-/** Trim, drop control characters, collapse spaces, and cut to the maximum length. */
+/* eslint-disable no-control-regex -- removing control characters is the point of this pattern */
 /** Control characters and invisible or direction-changing characters that can hide or reorder text. */
-// eslint-disable-next-line no-control-regex -- removing control characters is the point
 const HIDDEN = new RegExp(
   '[\\u0000-\\u001f\\u007f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f]',
   'g',
 );
+/* eslint-enable no-control-regex */
 
 /** Trim, drop control characters, collapse spaces, and cut to the maximum length. */
 export function cleanChatText(raw: string): string {

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=.env.local src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc --noEmit && tsup",
     "typecheck": "tsc --noEmit",

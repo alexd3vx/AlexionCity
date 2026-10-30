@@ -1,3 +1,4 @@
+import { SPAWN } from '@alexioncity/shared';
 import type { Box, Circle } from '../collision';
 
 export type { Box };
@@ -176,7 +177,7 @@ export function generateLayout(opts: LayoutOptions = {}): Layout {
     boxes: [],
     circles: [],
     pois: [],
-    spawn: { x: 0, z: 17, yaw: Math.PI },
+    spawn: { ...SPAWN },
   };
 
   // ---- streets, pavements, paint

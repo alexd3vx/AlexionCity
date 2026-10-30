@@ -4,6 +4,7 @@ import {
   isMoveAllowed,
   MOTION_CODES,
   PROTOCOL_VERSION,
+  SPAWN,
   type AvatarSpec,
   type BlockEntry,
   type ClientMessage,
@@ -57,6 +58,8 @@ interface Player {
   motion: Motion;
   version: number;
   lastMoveAt: number;
+  /** False until the first move: a returning player may be anywhere, so that one position is taken as given. */
+  placed: boolean;
   /** Users this player has blocked, by user id. */
   blocked: Map<string, string>;
   /** What each nearby player looked like the last time this player was told. */
@@ -101,12 +104,13 @@ export class GameServer {
       avatar: { frame: '', head: '', body: '', legs: '', feet: '', skin: '', hair: '' },
       district: 'downtown',
       channel: '',
-      x: 0,
-      z: 0,
-      yaw: 0,
+      x: SPAWN.x,
+      z: SPAWN.z,
+      yaw: SPAWN.yaw,
       motion: 'idle',
       version: 0,
       lastMoveAt: this.now(),
+      placed: false,
       blocked: new Map(),
       known: new Map(),
       guard: new ChatGuard(),
@@ -223,7 +227,10 @@ export class GameServer {
     const dt = (t - p.lastMoveAt) / 1000;
     p.lastMoveAt = t;
     const inBounds = Math.abs(msg.x) <= WORLD_LIMIT && Math.abs(msg.z) <= WORLD_LIMIT;
-    if (inBounds && isMoveAllowed(p, msg, dt, msg.mode)) {
+    // the first position after joining is the starting point (after a reconnect the player is not at the spawn)
+    const first = !p.placed && inBounds;
+    if (first || (inBounds && isMoveAllowed(p, msg, dt, msg.mode))) {
+      p.placed = true;
       p.x = msg.x;
       p.z = msg.z;
       p.yaw = msg.yaw;

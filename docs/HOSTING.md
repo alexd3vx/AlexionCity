@@ -9,7 +9,7 @@ The rule: **every host-specific value is an environment variable.** Moving from 
 | Client (the game page)              | Phase 0     | Any static host; Cloudflare Pages is the suggested one | Same host with your domain                   |
 | Supabase (accounts, saves, economy) | Phase 0     | Your existing Supabase project on its free plan        | Pro plan or self-hosted Supabase on your VPS |
 | Asset packs (3D models)             | Phase 1     | Static hosting or object storage                       | A CDN on your domain                         |
-| Game server (live movement)         | Phase 2     | Not needed yet                                         | Your VPS, or any always-on host              |
+| Game server (live movement)         | Phase 2     | Your own computer while testing                        | Your VPS, or any always-on host              |
 | Admin app                           | Phase 2     | Not needed yet                                         | Its own hidden domain                        |
 
 ## Environment variables
@@ -23,18 +23,29 @@ Client (`apps/client`, copy `.env.example` to `.env.local`; on a host, set these
 | `VITE_GAME_WS_URL`              | WebSocket address of the game server                                                         |
 | `VITE_ASSET_BASE`               | Where `manifest.json` and the packs are served from                                          |
 
-Game server (`apps/server`): `PORT`, and `ALLOWED_ORIGINS` (comma-separated page origins; required in production). When the server starts writing money in Phase 3 it also needs `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (the `sb_secret_...` key, the newer name for the service-role key). **That secret key lives only in the server's environment. It never goes in the client or in git, and it should not be pasted into chat. Rotate it before launch, and straight away if anyone else can see the conversation.**
+Game server (`apps/server`, copy `.env.example` to `.env.local`; `pnpm dev` reads it):
+
+| Variable              | What it is                                                                                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                | Port to listen on (8787)                                                                                                                              |
+| `ALLOWED_ORIGINS`     | Comma-separated page origins allowed to connect. Required in production                                                                               |
+| `SUPABASE_URL`        | Your project URL. With the next one, the server checks sign-in tokens and saves reports, blocks and chat. Without them it runs in memory, for testing |
+| `SUPABASE_SECRET_KEY` | The `sb_secret_...` key (the newer name for the service-role key)                                                                                     |
+| `ALLOW_DEV_GUESTS`    | `1` accepts made-up guest ids without Supabase. On by default outside production, off in production. Never turn it on for a public server             |
+| `NODE_ENV`            | Set to `production` on a real host                                                                                                                    |
+
+In the client, `VITE_GAME_WS_URL` is where the browser connects. If it is not set, the client uses the page's own address on port 8787 (so a phone on your Wi-Fi works), or `wss://your-site/ws` on an https page, which a reverse proxy should forward to the server. **That secret key lives only in the server's environment. It never goes in the client or in git, and it should not be pasted into chat. Rotate it before launch, and straight away if anyone else can see the conversation.**
 
 ## Supabase setup (once)
 
 1. **Anonymous sign-ins:** Authentication, Sign In / Providers, turn on "Allow anonymous sign-ins". (Done for the current project.)
-2. **Data model:** run `supabase/migrations/20261029000000_init.sql` once, in the dashboard SQL Editor, or with the Supabase CLI (`supabase link`, then `supabase db push`). It creates profiles, wallets, an append-only ledger and inventory, with row-level security so players can read but never change their money.
+2. **Data model:** run the files in `supabase/migrations/` in order, once each, in the dashboard SQL Editor, or with the Supabase CLI (`supabase link`, then `supabase db push`). `20261029000000_init.sql` creates profiles, wallets, an append-only ledger and inventory, with row-level security so players can read but never change their money. `20261030000000_moderation.sql` adds blocks, reports, the chat log and bans. Both are applied to the current project; `pnpm check:db` checks them.
 3. **Abuse control:** anonymous sign-ins let anyone create accounts cheaply. Before public launch, turn on CAPTCHA and rate limits for sign-ups in the Auth settings.
-4. **Later, for Google and Apple login:** set the Site URL and redirect URLs to your real domain.
+4. **Google and Apple login, and linking a guest to an account:** switch on "Allow manual linking" and each provider in Authentication, and set the Site URL and redirect URLs to your real domain. Email sign-in works with Supabase's built-in sender only a few times an hour; connect your own sender before real testers arrive.
 
-The migration is tested on a throwaway Postgres with `bash supabase/tests/run-local.sh`; it has not yet been applied to a hosted project.
+The migrations are tested on a throwaway Postgres with `bash supabase/tests/run-local.sh`, and applied to the hosted project.
 
-## Game server (Phase 2)
+## Game server
 
 A live game needs a server that stays on. Hosts that put free apps to sleep after a few idle minutes break live play. Based on 2026 comparisons (secondary sources, check each provider's own pricing page):
 

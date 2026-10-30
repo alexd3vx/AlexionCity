@@ -23,6 +23,9 @@ export const DISTRICTS = ['downtown', 'residential', 'market', 'harbor', 'airpor
 export type District = (typeof DISTRICTS)[number];
 
 /** How far away, in metres, other players are sent to you. Beyond this they are not drawn. */
+/** Where a player first appears in the downtown district. Client and server agree on it. */
+export const SPAWN = { x: 0, z: 17, yaw: Math.PI } as const;
+
 export const INTEREST_RADIUS = 90;
 
 /** Chat is heard this far around the speaker. */

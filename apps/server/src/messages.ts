@@ -2,8 +2,6 @@ import {
   DISTRICTS,
   EMOTES,
   MOTION_CODES,
-  NAME_MAX_LENGTH,
-  NAME_MIN_LENGTH,
   REPORT_REASONS,
   type AvatarSpec,
   type ClientMessage,
@@ -12,6 +10,7 @@ import {
   type MoveMode,
   type ReportReason,
 } from '@alexioncity/shared';
+export { cleanName } from '@alexioncity/shared';
 
 const MODES: readonly MoveMode[] = ['walk', 'run', 'vehicle'];
 const isDistrict = (v: unknown): v is District =>
@@ -19,17 +18,6 @@ const isDistrict = (v: unknown): v is District =>
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isString = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max;
 const ID = /^[a-z0-9_-]{1,32}$/;
-
-/** Names are shown above players' heads, so keep them short and plain. */
-export function cleanName(raw: unknown): string | undefined {
-  if (typeof raw !== 'string') return undefined;
-  const name = raw
-    .replace(/[^\p{L}\p{N} _.-]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, NAME_MAX_LENGTH);
-  return name.length >= NAME_MIN_LENGTH ? name : undefined;
-}
 
 /** The server does not know the catalog, so it only checks the shape: short plain ids. */
 export function parseAvatar(raw: unknown): AvatarSpec | undefined {

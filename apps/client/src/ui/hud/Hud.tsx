@@ -9,14 +9,20 @@ import { tokens } from '@alexioncity/shared';
 import { Icon } from './icons';
 import { drawMap } from './minimap';
 import { MapPanel, MePanel, SoonPanel } from './panels';
+import type { Multiplayer } from '../../net/useMultiplayer';
+import { AccountSection } from './account';
+import { ChatButton, ChatFeed, ChatSheet, ConnectionPill, PlayerCard } from './social';
 
-export type Tab = 'me' | 'buy' | 'map' | 'phone';
+export type Tab = 'me' | 'buy' | 'map' | 'phone' | 'chat';
 
 interface Props {
   world: World;
   state: WorldState;
   content: Content | undefined;
   guestLabel: string;
+  mp: Multiplayer;
+  name: string;
+  onRename: (name: string) => void;
   onOpenDownloads: () => void;
 }
 
@@ -238,7 +244,16 @@ function BottomBar({ tab, setTab }: { tab: Tab | null; setTab: (t: Tab | null) =
   );
 }
 
-export function Hud({ world, state, content, guestLabel, onOpenDownloads }: Props) {
+export function Hud({
+  world,
+  state,
+  content,
+  guestLabel,
+  mp,
+  name,
+  onRename,
+  onOpenDownloads,
+}: Props) {
   const [tab, setTab] = useState<Tab | null>(null);
   const [toast, setToast] = useState<string | undefined>();
   const timer = useRef<number | undefined>(undefined);
@@ -252,6 +267,12 @@ export function Hud({ world, state, content, guestLabel, onOpenDownloads }: Prop
     if (state.arrived) show(`You are at ${state.arrived}`);
   }, [state.arrived, show]);
 
+  // warnings from the game server (a blocked word, slow down) appear like any other toast
+  const notice = mp.room.notice;
+  useEffect(() => {
+    if (notice) show(notice.text);
+  }, [notice, show]);
+
   const debug = new URLSearchParams(location.search).has('debug');
   // the destination bar sits under the top pill, so the side columns step down to make room
   const columnTop = state.waypoint
@@ -263,17 +284,20 @@ export function Hud({ world, state, content, guestLabel, onOpenDownloads }: Prop
       <div className="absolute inset-x-0 top-[max(0.6rem,env(safe-area-inset-top))] flex flex-col items-center gap-2 px-3">
         <TopPill world={world} state={state} onWhere={() => setTab('map')} />
         <WaypointBar world={world} state={state} />
+        <ConnectionPill status={mp.room.status} reason={mp.room.reason} />
       </div>
 
       <div
         className={`absolute left-3 flex flex-col gap-2 pt-1 transition-[top] duration-200 ${columnTop}`}
       >
         <Needs />
+        <ChatFeed lines={mp.room.lines} />
       </div>
       <div
         className={`absolute right-3 flex flex-col items-end gap-2 pt-1 transition-[top] duration-200 ${columnTop}`}
       >
         <SideButtons world={world} state={state} onSettings={() => setTab('me')} show={show} />
+        <ChatButton mp={mp} onOpen={() => setTab('chat')} />
         <MiniMap world={world} state={state} />
       </div>
 
@@ -299,7 +323,7 @@ export function Hud({ world, state, content, guestLabel, onOpenDownloads }: Prop
               <button
                 className="rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#1b2340] shadow-[0_6px_18px_rgba(27,35,64,0.25)] active:scale-95"
                 onClick={() =>
-                  show('"How far is Pizza Corner?" Conversations arrive with chat in Phase 2.')
+                  show("They smile and keep walking. Tap another player's name tag to talk.")
                 }
               >
                 {state.talk.label}
@@ -330,6 +354,8 @@ export function Hud({ world, state, content, guestLabel, onOpenDownloads }: Prop
         </p>
       )}
 
+      <PlayerCard mp={mp} show={show} />
+
       <AnimatePresence>
         {tab && (
           <motion.section
@@ -344,7 +370,7 @@ export function Hud({ world, state, content, guestLabel, onOpenDownloads }: Prop
           >
             <header className="flex items-center justify-between px-5 pb-2 pt-4">
               <h2 className="font-display text-xl font-extrabold">
-                {{ me: 'Me', buy: 'Buy', map: 'Map', phone: 'Phone' }[tab]}
+                {{ me: 'Me', buy: 'Buy', map: 'Map', phone: 'Phone', chat: 'Chat' }[tab]}
               </h2>
               <button
                 aria-label="Close"
@@ -361,8 +387,10 @@ export function Hud({ world, state, content, guestLabel, onOpenDownloads }: Prop
                   content={content}
                   guestLabel={guestLabel}
                   onOpenDownloads={onOpenDownloads}
+                  account={<AccountSection mp={mp} name={name} onRename={onRename} />}
                 />
               )}
+              {tab === 'chat' && <ChatSheet mp={mp} />}
               {tab === 'map' && (
                 <MapPanel
                   world={world}

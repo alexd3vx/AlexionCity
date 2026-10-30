@@ -13,6 +13,7 @@ declare global {
 export function GameView({ onWorld }: { onWorld: (world: World | undefined) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const overlay = useRef<HTMLDivElement>(null);
   const world = useRef<World | null>(null);
   const keys = useRef({ x: 0, y: 0, run: false, stickX: 0, stickY: 0 });
 
@@ -27,6 +28,7 @@ export function GameView({ onWorld }: { onWorld: (world: World | undefined) => v
     const time = params.get('t')?.match(/^(\d{1,2}):(\d{2})$/);
     const w = createWorld(el, {
       tier: pickQuality(readDeviceHints()),
+      overlay: overlay.current!,
       ...(time ? { fixedMinutes: Number(time[1]) * 60 + Number(time[2]) } : {}),
     });
     world.current = w;
@@ -103,6 +105,8 @@ export function GameView({ onWorld }: { onWorld: (world: World | undefined) => v
   return (
     <div ref={box} className="absolute inset-0 touch-none select-none">
       <canvas ref={canvas} className="block h-full w-full" />
+      {/* name tags and chat bubbles; only the tags themselves take taps */}
+      <div ref={overlay} className="pointer-events-none absolute inset-0 z-[4] overflow-hidden" />
       <div className="absolute bottom-[calc(max(0.6rem,env(safe-area-inset-bottom))+7.6rem)] left-[max(0.9rem,env(safe-area-inset-left))] z-[5]">
         <Joystick
           onChange={(x, y) => {

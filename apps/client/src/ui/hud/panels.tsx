@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AvatarPart } from '@alexioncity/shared';
 import {
   frameOf,
@@ -190,11 +190,13 @@ export function MePanel({
   content,
   guestLabel,
   onOpenDownloads,
+  account,
 }: {
   world: World;
   content: Content | undefined;
   guestLabel: string;
   onOpenDownloads: () => void;
+  account?: ReactNode;
 }) {
   const [quality, setQuality] = useState(readQuality);
   const [changed, setChanged] = useState(false);
@@ -227,6 +229,8 @@ export function MePanel({
           </button>
         </section>
       )}
+
+      {account}
 
       <section aria-label="Settings" className="space-y-4">
         <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#1b2340]/55">

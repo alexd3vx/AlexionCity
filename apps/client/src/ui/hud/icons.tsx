@@ -26,6 +26,7 @@ const PATHS = {
   arrow: 'M12 19V5 M6 11l6-6 6 6',
   shuffle: 'M4 7h4l8 10h4 M4 17h4l3-4 M13 11l3-4h4 M18 5l2 2-2 2 M18 15l2 2-2 2',
   check: 'M5 12.5l4.5 4.5L19 7.5',
+  chat: 'M4 5h16v11H9l-5 4z M8 9.5h8 M8 12.5h5',
 } as const;
 
 export type IconName = keyof typeof PATHS;

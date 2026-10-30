@@ -1,5 +1,13 @@
 import * as THREE from 'three';
-import type { AvatarCatalog, QualityTier } from '@alexioncity/shared';
+import type {
+  AvatarCatalog,
+  Emote,
+  Motion,
+  MoveMode,
+  Peer,
+  PosUpdate,
+  QualityTier,
+} from '@alexioncity/shared';
 import { assembleAvatar, AVATAR_HEIGHT, type Avatar } from '../avatar/assemble';
 import type { AvatarSpec } from '../avatar/catalog';
 import type { AssetStore } from './assets';
@@ -10,7 +18,9 @@ import { generateLayout, type Layout, type Poi, type PoiIcon } from './district/
 import { DISTRICT_PACKS } from './district/models';
 import { createDistrictView, type DistrictView } from './district/blocks';
 import { buildBase } from './district/scene';
+import { Labels } from './labels';
 import { Pedestrians } from './pedestrians';
+import { RemotePlayers, type Assets } from './remote';
 
 export interface Input {
   /** -1 (left) to 1 (right) */
@@ -48,6 +58,8 @@ export interface WorldState {
   arrived?: string;
   look: 'default' | 'models';
   avatars: boolean;
+  /** Other players in view of this one. */
+  peers: number;
   stats: { fps: number; calls: number; triangles: number };
 }
 
@@ -56,6 +68,17 @@ export interface WorldOptions {
   /** Freeze the time of day, in minutes since midnight. Used for screenshots and tests. */
   fixedMinutes?: number;
   seed?: number;
+  /** Page element drawn over the canvas that holds name tags and chat bubbles. */
+  overlay?: HTMLElement;
+}
+
+/** What the server needs to know about the player each moment. */
+export interface LocalPose {
+  x: number;
+  z: number;
+  yaw: number;
+  motion: Motion;
+  mode: MoveMode;
 }
 
 export interface World {
@@ -75,6 +98,20 @@ export interface World {
   setMinutes(minutes: number | undefined): void;
   onState(listener: (state: WorldState) => void): () => void;
   teleport(x: number, z: number): void;
+  /** Other players: who arrived and left, where everyone moved, what they said. */
+  applyPeers(add: readonly Peer[], remove: readonly string[]): void;
+  applyPositions(updates: readonly PosUpdate[]): void;
+  peerSay(id: string, text: string): void;
+  peerEmote(id: string, emote: Emote): void;
+  /** The player's own chat bubble, drawn above their head. */
+  saySelf(text: string, emote?: boolean): void;
+  peerInfo(id: string): Peer | undefined;
+  /** Called with the id of a player whose name tag was tapped. */
+  onPeerTap(handler: (id: string) => void): void;
+  /** Called every frame with where the player is. */
+  onLocal(listener: (pose: LocalPose) => void): () => void;
+  /** Called after the player's own avatar was rebuilt with a new look. */
+  onAvatarChange(listener: (spec: AvatarSpec) => void): () => void;
   /** Mark a place as the destination, or clear it with undefined. */
   setWaypoint(poiId: string | undefined): void;
   dispose(): void;
@@ -144,6 +181,17 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
   scene.add(playerGroup);
   let avatar: Avatar | undefined;
   let crowd: Pedestrians | undefined;
+
+  // other players, with their name tags drawn as page elements over the canvas
+  let assets: Assets | undefined;
+  const labels = new Labels(options.overlay ?? document.createElement('div'));
+  const remote = new RemotePlayers(tier, labels, () => assets);
+  scene.add(remote.group);
+  labels.set('self', '');
+  const projected = new THREE.Vector3();
+  let viewport = { width: 1, height: 1 };
+  const localListeners = new Set<(pose: LocalPose) => void>();
+  const avatarListeners = new Set<(spec: AvatarSpec) => void>();
 
   // destination marker: a tall translucent beam with a ring on the ground
   const beacon = new THREE.Group();
@@ -247,6 +295,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       ...(arrived && arrived.until > performance.now() ? { arrived: arrived.name } : {}),
       look: city.detailed ? 'models' : 'default',
       avatars: Boolean(avatar),
+      peers: remote.count,
       stats: { fps: Math.round(fps), calls: info.calls, triangles: info.triangles },
     };
   };
@@ -301,6 +350,16 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
     avatar?.update(dt);
     crowd?.update(dt);
     city.update(px, pz);
+    if (localListeners.size > 0) {
+      const pose: LocalPose = {
+        x: px,
+        z: pz,
+        yaw: facing,
+        motion: moving,
+        mode: moving === 'run' ? 'run' : 'walk',
+      };
+      localListeners.forEach((l) => l(pose));
+    }
 
     // camera: smooth behind the player, kept out of buildings
     camYaw = approachAngle(camYaw, camYawTarget, dt, 12);
@@ -318,6 +377,15 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
     }
     lookAt.set(...pose.lookAt);
     camera.lookAt(lookAt);
+    camera.updateMatrixWorld();
+    projected.set(px, AVATAR_HEIGHT + 0.35, pz).project(camera);
+    labels.place(
+      'self',
+      (projected.x * 0.5 + 0.5) * viewport.width,
+      (-projected.y * 0.5 + 0.5) * viewport.height,
+      projected.z < 1,
+    );
+    remote.update(dt, camera, viewport, { x: px, z: pz });
 
     sun.position.set(px + sunDir.x * 90, sunDir.y * 90, pz + sunDir.z * 90);
     sun.target.position.set(px, 0, pz);
@@ -351,6 +419,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
     recenter: () => void (camYawTarget = facing),
     resize(width, height) {
       renderer.setSize(width, height, false);
+      viewport = { width, height };
       camera.aspect = width / Math.max(height, 1);
       camera.updateProjectionMatrix();
     },
@@ -367,6 +436,10 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       standIn.visible = false;
       playerGroup.add(next.root);
       next.play(moving);
+      const first = !assets;
+      assets = { store, catalog };
+      if (first) remote.refreshAssets();
+      avatarListeners.forEach((l) => l(spec));
     },
     async upgradeAvatars(store, catalog, spec) {
       await world.setAvatarSpec(store, catalog, spec);
@@ -388,6 +461,21 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       px = x;
       pz = z;
     },
+    applyPeers: (add, remove) => remote.apply(add, remove),
+    applyPositions: (updates) => remote.move(updates),
+    peerSay: (id, text) => remote.say(id, text),
+    peerEmote: (id, emote) => remote.emote(id, emote),
+    saySelf: (text, emote) => labels.say('self', emote ? `* ${text} *` : text, Boolean(emote)),
+    peerInfo: (id) => remote.info(id),
+    onPeerTap: (handler) => remote.onTap(handler),
+    onLocal(listener) {
+      localListeners.add(listener);
+      return () => void localListeners.delete(listener);
+    },
+    onAvatarChange(listener) {
+      avatarListeners.add(listener);
+      return () => void avatarListeners.delete(listener);
+    },
     setWaypoint(poiId) {
       waypoint = poiId ? layout.pois.find((p) => p.id === poiId) : undefined;
       beacon.visible = Boolean(waypoint);
@@ -397,6 +485,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       cancelAnimationFrame(raf);
       avatar?.dispose();
       crowd?.dispose();
+      remote.dispose();
+      labels.dispose();
       city.dispose();
       base.dispose();
       beam.geometry.dispose();
