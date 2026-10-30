@@ -21,3 +21,13 @@ export const SPEED_LIMITS = {
 /** Working names for the Phase 1 districts. */
 export const DISTRICTS = ['downtown', 'residential', 'market', 'harbor', 'airport'] as const;
 export type District = (typeof DISTRICTS)[number];
+
+/** How far away, in metres, other players are sent to you. Beyond this they are not drawn. */
+export const INTEREST_RADIUS = 90;
+
+/** Chat is heard this far around the speaker. */
+export const CHAT_RADIUS = 80;
+
+export const CHAT_MAX_LENGTH = 160;
+export const NAME_MIN_LENGTH = 2;
+export const NAME_MAX_LENGTH = 20;

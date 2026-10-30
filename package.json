@@ -20,7 +20,8 @@
     "assets:validate": "pnpm --filter @alexioncity/asset-tools validate",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "assets:build": "pnpm --filter @alexioncity/asset-tools cli build --root ../../assets-src --out ../../packs-out --game-version 0.0.1",
-    "perf": "node tools/perf-check.mjs"
+    "perf": "node tools/perf-check.mjs",
+    "check:db": "node tools/live-db-check.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

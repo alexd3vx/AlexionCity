@@ -4,10 +4,10 @@ import { GameServer } from './game';
 
 export interface ServerOptions {
   port: number;
+  game: GameServer;
   /** Origins allowed to open a socket. Empty means any origin, which is fine for local development only. */
   allowedOrigins?: string[];
   tickHz?: number;
-  game?: GameServer;
 }
 
 export interface RunningServer {
@@ -16,11 +16,11 @@ export interface RunningServer {
   close(): Promise<void>;
 }
 
-const MAX_MESSAGE_BYTES = 1024;
+const MAX_MESSAGE_BYTES = 2048;
 const MAX_MESSAGES_PER_SECOND = 40;
 
 export async function startServer(opts: ServerOptions): Promise<RunningServer> {
-  const game = opts.game ?? new GameServer();
+  const { game } = opts;
   const allowed = new Set(opts.allowedOrigins ?? []);
 
   const http: Server = createHttpServer((req, res) => {
@@ -53,13 +53,19 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         count = 0;
       }
       if (++count > MAX_MESSAGES_PER_SECOND) return socket.close(1008, 'rate limit');
-      game.receive(id, data.toString());
+      // an error in one message must never take the server down
+      game
+        .receive(id, data.toString())
+        .catch((e: unknown) =>
+          console.error('message failed:', e instanceof Error ? e.message : e),
+        );
     });
     socket.on('close', () => game.disconnect(id));
     socket.on('error', () => game.disconnect(id));
   });
 
-  const timer = setInterval(() => game.broadcast(), 1000 / (opts.tickHz ?? 10));
+  const tick = setInterval(() => game.broadcast(), 1000 / (opts.tickHz ?? 8));
+  const logs = setInterval(() => void game.flushLogs().catch(() => {}), 5000);
 
   await new Promise<void>((resolve) => http.listen(opts.port, resolve));
   const address = http.address();
@@ -70,7 +76,9 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     game,
     close: () =>
       new Promise<void>((resolve) => {
-        clearInterval(timer);
+        clearInterval(tick);
+        clearInterval(logs);
+        void game.flushLogs().catch(() => {});
         for (const client of wss.clients) client.terminate();
         wss.close(() => http.close(() => resolve()));
       }),

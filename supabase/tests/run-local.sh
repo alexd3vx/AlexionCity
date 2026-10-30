@@ -23,4 +23,7 @@ psql_run() { run psql -h "$dir" -p "$port" -U postgres -v ON_ERROR_STOP=1 -q "$@
 psql_run -d postgres -c 'create database test' >/dev/null
 psql_run -d test -f "$here/mock_supabase.sql"
 for f in "$here"/../migrations/*.sql; do psql_run -d test -f "$f"; done
-psql_run -d test -f "$here/data_model.test.sql" 2>&1 | grep -E "^(psql:|NOTICE:|ALL |ERROR)|ok  |FAIL" | sed 's/^psql:[^ ]* //; s/^NOTICE:  //'
+# every *.test.sql file, in order, against the same database
+for t in "$here"/*.test.sql; do
+  psql_run -d test -f "$t" 2>&1 | grep -E "^(psql:|NOTICE:|ALL |ERROR)|ok  |FAIL" | sed 's/^psql:[^ ]* //; s/^NOTICE:  //'
+done

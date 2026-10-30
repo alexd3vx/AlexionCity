@@ -1,5 +1,3 @@
-import type { District } from './constants';
-
 export type QualityTier = 'low' | 'high';
 
 /** CC-BY and CC-BY-SA models need visible credit; CC0 does not. */
@@ -52,24 +50,6 @@ export interface WhatsNewItem {
   notes: string[];
 }
 
-export interface PlayerState {
-  id: string;
-  name: string;
-  x: number;
-  z: number;
-  yaw: number;
-}
-
-export type ClientMessage =
-  | { t: 'join'; district: District; name: string }
-  | { t: 'move'; seq: number; x: number; z: number; yaw: number; mode: 'walk' | 'run' | 'vehicle' };
-
-export type ServerMessage =
-  | { t: 'welcome'; id: string; channel: string; players: PlayerState[] }
-  | { t: 'state'; players: PlayerState[] }
-  | { t: 'correct'; seq: number; x: number; z: number }
-  | { t: 'error'; code: 'bad_message' | 'bad_district' | 'not_joined' };
-
 /** The slots of an avatar. Each is its own mesh so parts from different outfits can be mixed. */
 export type AvatarPart = 'head' | 'body' | 'legs' | 'feet';
 
@@ -96,4 +76,15 @@ export interface AvatarOutfit {
   tags: string[];
   /** Pack path of each part's model. */
   parts: Partial<Record<AvatarPart, string>>;
+}
+
+/** What a player chose to look like. Outfit ids refer to the avatar catalog. */
+export interface AvatarSpec {
+  frame: string;
+  head: string;
+  body: string;
+  legs: string;
+  feet: string;
+  skin: string;
+  hair: string;
 }

@@ -1,7 +1,5 @@
 import { SPEED_LIMITS } from './constants';
-import type { ClientMessage } from './types';
-
-export type MoveMode = Extract<ClientMessage, { t: 'move' }>['mode'];
+import type { MoveMode } from './protocol';
 
 export interface Position {
   x: number;
