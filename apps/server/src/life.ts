@@ -135,6 +135,8 @@ export interface LifeOptions {
   id?: () => string;
   /** Give every new character this background instead of a random one. For testing. */
   background?: BackgroundId;
+  /** Seconds in the city between bills. Shorter than the real thing for testing. */
+  billPeriodSeconds?: number;
 }
 
 /**
@@ -146,10 +148,12 @@ export class LifeService {
   private readonly leaving = new Map<string, Promise<void>>();
   private readonly random: () => number;
   private readonly uid: () => string;
+  private readonly period: number;
 
   constructor(private readonly opts: LifeOptions) {
     this.random = opts.random ?? Math.random;
     this.uid = opts.id ?? (() => randomUUID().slice(0, 8));
+    this.period = opts.billPeriodSeconds ?? BILL_PERIOD_SECONDS;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -171,7 +175,7 @@ export class LifeService {
           debt: bg.debt,
           unit: bg.unit,
           needs: { ...START_NEEDS },
-          nextDue: BILL_PERIOD_SECONDS,
+          nextDue: this.period,
           layout,
           items,
         });
@@ -339,7 +343,7 @@ export class LifeService {
    * can be run again without charging anything twice. State changes are made only once it all went through.
    */
   private async settleBills(s: Session): Promise<void> {
-    const period = Math.floor(s.c.nextDue / BILL_PERIOD_SECONDS);
+    const period = Math.floor(s.c.nextDue / this.period);
     const lines = billLines(s.c.unit!, s.c.background, s.c.debt);
     let balance = s.balance;
     let owing = s.c.owing;
@@ -394,7 +398,7 @@ export class LifeService {
     s.c.owing = owing;
     s.c.overdue = overdue;
     s.c.debt = debt;
-    s.c.nextDue += BILL_PERIOD_SECONDS;
+    s.c.nextDue += this.period;
     if (paidRent) await this.tutorial(s, 'rent');
 
     if (s.c.overdue >= EVICT_AFTER_MISSED) {
@@ -711,7 +715,7 @@ export class LifeService {
     s.c.unit = unit;
     s.c.overdue = 0;
     // the new rent starts a fresh cycle
-    s.c.nextDue = s.c.onlineSeconds + BILL_PERIOD_SECONDS;
+    s.c.nextDue = s.c.onlineSeconds + this.period;
     await this.saveLayout(s);
     await this.save(s);
     s.handle.notice(

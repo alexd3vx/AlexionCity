@@ -10,7 +10,14 @@ declare global {
 }
 
 /** Mounts the 3D world, wires keyboard and touch input, and drag-to-orbit on the canvas. */
-export function GameView({ onWorld }: { onWorld: (world: World | undefined) => void }) {
+export function GameView({
+  onWorld,
+  hideControls = false,
+}: {
+  onWorld: (world: World | undefined) => void;
+  /** Indoors there is nothing to steer, so the stick goes away. */
+  hideControls?: boolean;
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const overlay = useRef<HTMLDivElement>(null);
@@ -116,15 +123,17 @@ export function GameView({ onWorld }: { onWorld: (world: World | undefined) => v
       <canvas ref={canvas} className="block h-full w-full" />
       {/* name tags and chat bubbles; only the tags themselves take taps */}
       <div ref={overlay} className="pointer-events-none absolute inset-0 z-[4] overflow-hidden" />
-      <div className="absolute bottom-[calc(max(0.6rem,env(safe-area-inset-bottom))+7.6rem)] left-[max(0.9rem,env(safe-area-inset-left))] z-[5]">
-        <Joystick
-          onChange={(x, y) => {
-            keys.current.stickX = x;
-            keys.current.stickY = y;
-            push();
-          }}
-        />
-      </div>
+      {!hideControls && (
+        <div className="absolute bottom-[calc(max(0.6rem,env(safe-area-inset-bottom))+7.6rem)] left-[max(0.9rem,env(safe-area-inset-left))] z-[5]">
+          <Joystick
+            onChange={(x, y) => {
+              keys.current.stickX = x;
+              keys.current.stickY = y;
+              push();
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

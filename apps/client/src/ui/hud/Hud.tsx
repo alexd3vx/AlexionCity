@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clockLabel, skyAt } from '../../game/daynight';
 import type { Content } from '../../game/content';
-import type { Poi, PoiIcon } from '@alexioncity/shared';
+import { UNITS, type Poi, type PoiIcon } from '@alexioncity/shared';
 import type { World, WorldState } from '../../game/world';
 import { VIEW_LABELS } from '../../game/cameras';
 import { Icon } from './icons';
@@ -11,6 +11,7 @@ import { MapPanel, MePanel, SoonPanel } from './panels';
 import type { Multiplayer } from '../../net/useMultiplayer';
 import { AccountSection } from './account';
 import { BankSheet } from './bank';
+import { HomeHud } from './home';
 import { ActivityBar, CareerCard, HousingSection, NeedsPanel, TutorialChip, alex } from './life';
 import { ShopSheet } from './shop';
 import { VenueSheet } from './venue';
@@ -36,12 +37,15 @@ function TopPill({
   world,
   state,
   balance,
+  at,
   onWhere,
   onBank,
 }: {
   world: World;
   state: WorldState;
   balance: number | undefined;
+  /** Set while indoors: the centre of the pill names the home instead of offering a destination. */
+  at?: string | undefined;
   onWhere: () => void;
   onBank: () => void;
 }) {
@@ -61,19 +65,33 @@ function TopPill({
         {clockLabel(state.minutes)}
       </span>
       <span className="h-5 w-px shrink-0 bg-black/15" />
-      <button
-        className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-        onClick={onWhere}
-        aria-label="Choose a destination"
-      >
-        <Icon name="pin" className="h-4 w-4 shrink-0 text-[#ff7a1a]" />
-        <span className="min-w-0 leading-tight">
-          <span className="block truncate text-[13px] font-bold text-[#1b2340]/70">Where to?</span>
-          <span className="block truncate text-[10px] font-bold uppercase tracking-wider text-[#1b2340]/45">
-            {state.street}
+      {at ? (
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <Icon name="home" className="h-4 w-4 shrink-0 text-[#ff7a1a]" />
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-[13px] font-bold text-[#1b2340]/70">At home</span>
+            <span className="block truncate text-[10px] font-bold uppercase tracking-wider text-[#1b2340]/45">
+              {at}
+            </span>
           </span>
         </span>
-      </button>
+      ) : (
+        <button
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          onClick={onWhere}
+          aria-label="Choose a destination"
+        >
+          <Icon name="pin" className="h-4 w-4 shrink-0 text-[#ff7a1a]" />
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-[13px] font-bold text-[#1b2340]/70">
+              Where to?
+            </span>
+            <span className="block truncate text-[10px] font-bold uppercase tracking-wider text-[#1b2340]/45">
+              {state.street}
+            </span>
+          </span>
+        </button>
+      )}
       <button
         aria-label={balance === undefined ? 'Bank' : `Bank, balance ${alex(balance)}`}
         className="shrink-0 text-sm font-extrabold tabular-nums"
@@ -250,13 +268,15 @@ export function Hud({
     }
     showing.current = true;
     setToast(message);
-    timer.current = window.setTimeout(next, queue.current.length > 0 ? 1700 : 2400);
+    // a long queue moves faster, so an old message is not still waiting when it stops mattering
+    const wait = queue.current.length > 3 ? 1000 : queue.current.length > 0 ? 1700 : 2400;
+    timer.current = window.setTimeout(next, wait);
   }, []);
   const show = useCallback(
     (message: string) => {
       if (queue.current.at(-1) === message) return;
       queue.current.push(message);
-      if (queue.current.length > 5) queue.current.shift();
+      if (queue.current.length > 8) queue.current.shift();
       if (!showing.current) next();
     },
     [next],
@@ -314,17 +334,26 @@ export function Hud({
     'top-[calc(max(0.6rem,env(safe-area-inset-top))+12rem)]',
   ][Math.min(bars, 3)]!;
 
+  const life = mp.room.life;
+  const inside = Boolean(life?.home.inside && life.home.unit);
+
+  // opening the door closes whatever sheet was open
+  useEffect(() => {
+    if (inside) setTab((t) => (t === 'venue' || t === 'chat' || t === 'map' ? null : t));
+  }, [inside]);
+
   return (
     <div className="pointer-events-none absolute inset-0 z-10 select-none">
       <div className="absolute inset-x-0 top-[max(0.6rem,env(safe-area-inset-top))] flex flex-col items-center gap-2 px-3">
         <TopPill
           world={world}
           state={state}
-          balance={mp.room.life?.balance}
+          balance={life?.balance}
+          at={inside ? UNITS[life!.home.unit!].name : undefined}
           onWhere={() => setTab('map')}
           onBank={() => setTab('bank')}
         />
-        <WaypointBar world={world} state={state} />
+        {!inside && <WaypointBar world={world} state={state} />}
         <ActivityBar mp={mp} />
         <ConnectionPill status={mp.room.status} reason={mp.room.reason} />
       </div>
@@ -334,15 +363,19 @@ export function Hud({
       >
         <NeedsPanel needs={mp.room.life?.needs} />
         <TutorialChip life={mp.room.life} onOpen={() => setTab('me')} />
-        <ChatFeed lines={mp.room.lines} />
+        {!inside && <ChatFeed lines={mp.room.lines} />}
       </div>
-      <div
-        className={`absolute right-3 flex flex-col items-end gap-2 pt-1 transition-[top] duration-200 ${columnTop}`}
-      >
-        <SideButtons world={world} state={state} onSettings={() => setTab('me')} show={show} />
-        <ChatButton mp={mp} onOpen={() => setTab('chat')} />
-        <MiniMap world={world} state={state} />
-      </div>
+      {inside ? (
+        <HomeHud world={world} mp={mp} show={show} columnTop={columnTop} />
+      ) : (
+        <div
+          className={`absolute right-3 flex flex-col items-end gap-2 pt-1 transition-[top] duration-200 ${columnTop}`}
+        >
+          <SideButtons world={world} state={state} onSettings={() => setTab('me')} show={show} />
+          <ChatButton mp={mp} onOpen={() => setTab('chat')} />
+          <MiniMap world={world} state={state} />
+        </div>
+      )}
 
       <AnimatePresence>
         {toast && (
@@ -360,7 +393,7 @@ export function Hud({
       </AnimatePresence>
 
       <div className="absolute inset-x-0 bottom-[max(0.6rem,env(safe-area-inset-bottom))] flex flex-col items-center gap-2">
-        {(state.action || state.talk) && (
+        {!inside && (state.action || state.talk) && (
           <div className="pointer-events-auto flex w-full max-w-md flex-col items-end gap-2 px-3">
             {state.talk && (
               <button
@@ -382,7 +415,7 @@ export function Hud({
             )}
           </div>
         )}
-        <PlacesStrip world={world} state={state} />
+        {!inside && <PlacesStrip world={world} state={state} />}
         <BottomBar tab={tab} setTab={setTab} />
       </div>
 

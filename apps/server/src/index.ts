@@ -27,7 +27,12 @@ const store: Store = supabase
 
 // knobs for testing only; ignored in production
 const dev = env.NODE_ENV !== 'production';
-const testing = dev && isBackgroundId(env.DEV_BACKGROUND) ? { background: env.DEV_BACKGROUND } : {};
+const testing = dev
+  ? {
+      ...(isBackgroundId(env.DEV_BACKGROUND) ? { background: env.DEV_BACKGROUND } : {}),
+      ...(env.DEV_BILL_PERIOD ? { billPeriodSeconds: Number(env.DEV_BILL_PERIOD) } : {}),
+    }
+  : {};
 
 const lifeStore: LifeStore = supabase
   ? new SupabaseLifeStore(env.SUPABASE_URL!, env.SUPABASE_SECRET_KEY!)

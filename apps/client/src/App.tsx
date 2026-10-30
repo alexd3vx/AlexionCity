@@ -81,7 +81,7 @@ export default function App() {
 
   return (
     <div className="relative h-dvh w-dvw overflow-hidden bg-slate-900 font-sans">
-      <GameView onWorld={setWorld} />
+      <GameView onWorld={setWorld} hideControls={Boolean(worldState?.inside)} />
 
       {world && worldState && (
         <Hud

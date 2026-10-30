@@ -10,10 +10,12 @@ import {
   type Motion,
   type MoveMode,
   type Peer,
+  type Placed,
   type Poi,
   type PoiIcon,
   type PosUpdate,
   type QualityTier,
+  type UnitId,
 } from '@alexioncity/shared';
 import { assembleAvatar, AVATAR_HEIGHT, type Avatar } from '../avatar/assemble';
 import type { AvatarSpec } from '../avatar/catalog';
@@ -22,6 +24,7 @@ import { approachAngle, cameraPose, nextView, type ViewMode } from './cameras';
 import { nowMinutes, skyAt } from './daynight';
 import { createDistrictView, type DistrictView } from './district/blocks';
 import { buildBase } from './district/scene';
+import { Interior, type Ghost, type Hit } from './interior';
 import { Labels } from './labels';
 import { Pedestrians } from './pedestrians';
 import { RemotePlayers, type Assets } from './remote';
@@ -60,6 +63,8 @@ export interface WorldState {
   waypoint?: { poiId: string; name: string; distance: number; angle: number };
   /** Set for a few seconds after reaching the destination. */
   arrived?: string;
+  /** In the player's own home, drawn from the isometric cutaway view. */
+  inside: boolean;
   look: 'default' | 'models';
   avatars: boolean;
   /** Other players in view of this one. */
@@ -89,6 +94,7 @@ export interface LocalPose {
 
 export interface World {
   readonly layout: Layout;
+  readonly canvas: HTMLCanvasElement;
   setInput(input: Input): void;
   /** Rotate the camera around the player by `delta` radians. */
   orbit(delta: number): void;
@@ -104,6 +110,20 @@ export interface World {
   setMinutes(minutes: number | undefined): void;
   onState(listener: (state: WorldState) => void): () => void;
   teleport(x: number, z: number): void;
+  /** Go indoors: draw the home instead of the city. Call again to refresh the furniture. */
+  enterHome(unit: UnitId, layout: readonly Placed[]): void;
+  leaveHome(): void;
+  /** Show or hide the floor grid used while arranging. */
+  homeEditing(on: boolean): void;
+  /** The piece being placed, drawn as a ghost; undefined to clear it. */
+  homeGhost(ghost: Ghost | undefined): void;
+  homeSelect(id: string | undefined): void;
+  /** Turn the view a quarter turn around the room. */
+  turnHomeView(): void;
+  /** What is under a point on the canvas, in CSS pixels from its top-left corner. */
+  homePick(x: number, y: number): Hit;
+  /** What the player is doing at home, so sleeping and washing can hide them. */
+  homeActivity(kind: string | undefined): void;
   /** Other players: who arrived and left, where everyone moved, what they said. */
   applyPeers(add: readonly Peer[], remove: readonly string[]): void;
   applyPositions(updates: readonly PosUpdate[]): void;
@@ -187,6 +207,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
   scene.add(playerGroup);
   let avatar: Avatar | undefined;
   let crowd: Pedestrians | undefined;
+
+  // the player's home: its own scene graph, shown instead of the city while indoors
+  const interior = new Interior();
+  scene.add(interior.group);
+  let home = false;
+  const fog = scene.fog;
 
   // other players, with their name tags drawn as page elements over the canvas
   let assets: Assets | undefined;
@@ -305,9 +331,38 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       ...(arrived && arrived.until > performance.now() ? { arrived: arrived.name } : {}),
       look: city.detailed ? 'models' : 'default',
       avatars: Boolean(avatar),
+      inside: home,
       peers: remote.count,
       stats: { fps: Math.round(fps), calls: info.calls, triangles: info.triangles },
     };
+  };
+
+  const emit = (now: number, minutes: number) => {
+    if (now - lastEmit > 180 && listeners.size > 0) {
+      lastEmit = now;
+      const state = buildState(minutes);
+      listeners.forEach((l) => l(state));
+    }
+  };
+
+  /** One frame indoors: the cutaway camera, the player at the door, no city. */
+  const tickHome = (now: number, dt: number, minutes: number) => {
+    avatar?.update(dt);
+    const pose = interior.pose(camera.aspect, camera.fov, dt);
+    camera.position.copy(pose.position);
+    camera.lookAt(pose.target);
+    camera.updateMatrixWorld();
+    const spot = interior.doorSpot();
+    projected.set(spot.x, AVATAR_HEIGHT + 0.35, spot.z).project(camera);
+    labels.hideAllExcept(new Set(['self']));
+    labels.place(
+      'self',
+      (projected.x * 0.5 + 0.5) * viewport.width,
+      (-projected.y * 0.5 + 0.5) * viewport.height,
+      projected.z < 1 && playerGroup.visible,
+    );
+    renderer.render(scene, camera);
+    emit(now, minutes);
   };
 
   const camTarget = new THREE.Vector3();
@@ -321,6 +376,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
     fps += (1 / Math.max(dt, 0.001) - fps) * 0.05;
 
     const minutes = fixedMinutes ?? nowMinutes();
+    if (home) {
+      tickHome(now, dt, minutes);
+      raf = requestAnimationFrame(tick);
+      return;
+    }
     if (Math.abs(minutes - skyFor) > 0.25 || Number.isNaN(skyFor)) {
       skyFor = minutes;
       applySky(minutes);
@@ -412,17 +472,14 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
 
     renderer.render(scene, camera);
 
-    if (now - lastEmit > 180 && listeners.size > 0) {
-      lastEmit = now;
-      const state = buildState(minutes);
-      listeners.forEach((l) => l(state));
-    }
+    emit(now, minutes);
     raf = requestAnimationFrame(tick);
   };
   raf = requestAnimationFrame(tick);
 
   const world: World = {
     layout,
+    canvas,
     setInput: (next) => void (input = next),
     orbit: (delta) => void (camYawTarget += delta),
     cycleView: () => (view = nextView(view)),
@@ -434,6 +491,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       camera.updateProjectionMatrix();
     },
     async upgradeCity(store) {
+      void interior.useModels(store);
       // the core city pack is enough; models from optional packs fill in as they are downloaded
       if (!store.has(DISTRICT_PACKS[0])) return false;
       await city.upgrade(store);
@@ -455,6 +513,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       await world.setAvatarSpec(store, catalog, spec);
       if (!crowd) {
         crowd = new Pedestrians(layout, tier);
+        crowd.group.visible = !home;
         scene.add(crowd.group);
         await crowd.spawn(store, catalog);
       }
@@ -470,6 +529,59 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
     teleport(x, z) {
       px = x;
       pz = z;
+    },
+    enterHome(unit, homeLayout) {
+      if (!home) {
+        home = true;
+        for (const g of [base.group, city.group, remote.group, beacon]) g.visible = false;
+        if (crowd) crowd.group.visible = false;
+        scene.fog = null;
+        (scene.background as THREE.Color).setHex(0x39405c);
+        hemi.color.setHex(0xfff6e8);
+        hemi.groundColor.setHex(0x8a7a66);
+        hemi.intensity = 1.15;
+        sun.color.setHex(0xfff0d8);
+        sun.intensity = 0.75;
+        sun.castShadow = false;
+        camera.fov = 50;
+        camera.updateProjectionMatrix();
+        input = { x: 0, y: 0, run: false };
+        if (moving !== 'idle') {
+          moving = 'idle';
+          avatar?.play('idle');
+        }
+      }
+      interior.show(unit, homeLayout);
+      const size = interior.size;
+      sun.position.set(size.w / 2 + 6, 14, size.d / 2 + 8);
+      sun.target.position.set(size.w / 2, 0, size.d / 2);
+      const spot = interior.doorSpot();
+      playerGroup.position.set(spot.x, 0, spot.z);
+      playerGroup.rotation.y = 0;
+    },
+    leaveHome() {
+      if (!home) return;
+      home = false;
+      interior.hide();
+      for (const g of [base.group, city.group, remote.group]) g.visible = true;
+      if (crowd) crowd.group.visible = true;
+      beacon.visible = Boolean(waypoint);
+      scene.fog = fog;
+      sun.castShadow = tier === 'high';
+      skyFor = Number.NaN; // the sky and lights are set again on the next frame
+      playerGroup.visible = true;
+      camera.position.set(px, 3.2, pz);
+    },
+    homeEditing: (on) => interior.setEditing(on),
+    homeGhost: (ghost) => interior.setGhost(ghost),
+    homeSelect: (id) => interior.select(id),
+    turnHomeView: () => interior.turn(),
+    homePick: (x, y) =>
+      interior.pick((x / viewport.width) * 2 - 1, -((y / viewport.height) * 2 - 1), camera),
+    homeActivity(kind) {
+      const hidden = kind === 'sleep' || kind === 'wash';
+      playerGroup.visible = !hidden;
+      if (kind === 'sleep') labels.say('self', 'Zzz…', true);
     },
     applyPeers: (add, remove) => remote.apply(add, remove),
     applyPositions: (updates) => remote.move(updates),
@@ -496,6 +608,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       avatar?.dispose();
       crowd?.dispose();
       remote.dispose();
+      interior.dispose();
       labels.dispose();
       city.dispose();
       base.dispose();

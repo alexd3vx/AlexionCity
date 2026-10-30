@@ -26,6 +26,13 @@ const PATHS = {
   shuffle: 'M4 7h4l8 10h4 M4 17h4l3-4 M13 11l3-4h4 M18 5l2 2-2 2 M18 15l2 2-2 2',
   check: 'M5 12.5l4.5 4.5L19 7.5',
   chat: 'M4 5h16v11H9l-5 4z M8 9.5h8 M8 12.5h5',
+  turn: 'M20 12a8 8 0 1 1-2.4-5.7 M20 4v4.5h-4.5',
+  door: 'M6 21V4h12v17 M4 21h16 M14.5 12.5h.01',
+  sofa: 'M5 11V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3 M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v5H3z',
+  drop: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
+  grid: 'M4 4h16v16H4z M4 12h16 M12 4v16',
+  rotate: 'M4 12a8 8 0 0 1 14-5.3 M20 4v5h-5 M20 12a8 8 0 0 1-14 5.3 M4 20v-5h5',
+  box: 'M4 8l8-4 8 4v9l-8 4-8-4z M4 8l8 4 8-4 M12 12v9',
 } as const;
 
 export type IconName = keyof typeof PATHS;
