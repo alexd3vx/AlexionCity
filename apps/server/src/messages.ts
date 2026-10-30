@@ -1,6 +1,10 @@
 import {
   DISTRICTS,
   EMOTES,
+  isActivityKind,
+  isJobId,
+  isRotation,
+  isUnitId,
   MOTION_CODES,
   REPORT_REASONS,
   type AvatarSpec,
@@ -92,6 +96,47 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
       return (EMOTES as readonly unknown[]).includes(m.emote)
         ? { t: 'emote', emote: m.emote as Emote }
         : undefined;
+    case 'order':
+      return isString(m.item, 32) && m.item ? { t: 'order', item: m.item } : undefined;
+    case 'work':
+      return isJobId(m.job) ? { t: 'work', job: m.job } : undefined;
+    case 'quit_job':
+    case 'stop':
+    case 'pay_bills':
+    case 'statement':
+      return { t: m.t };
+    case 'start':
+      return isActivityKind(m.kind) ? { t: 'start', kind: m.kind } : undefined;
+    case 'buy':
+      return isString(m.item, 32) &&
+        m.item &&
+        Number.isInteger(m.qty) &&
+        (m.qty as number) >= 1 &&
+        (m.qty as number) <= 10
+        ? { t: 'buy', item: m.item, qty: m.qty as number }
+        : undefined;
+    case 'home':
+      return m.op === 'enter' || m.op === 'exit' ? { t: 'home', op: m.op } : undefined;
+    case 'place':
+      return isString(m.item, 32) &&
+        m.item &&
+        Number.isInteger(m.x) &&
+        Number.isInteger(m.z) &&
+        isRotation(m.rot)
+        ? { t: 'place', item: m.item, x: m.x as number, z: m.z as number, rot: m.rot }
+        : undefined;
+    case 'move_item':
+      return isString(m.id, 16) &&
+        m.id &&
+        Number.isInteger(m.x) &&
+        Number.isInteger(m.z) &&
+        isRotation(m.rot)
+        ? { t: 'move_item', id: m.id, x: m.x as number, z: m.z as number, rot: m.rot }
+        : undefined;
+    case 'store_item':
+      return isString(m.id, 16) && m.id ? { t: 'store_item', id: m.id } : undefined;
+    case 'move_unit':
+      return isUnitId(m.unit) ? { t: 'move_unit', unit: m.unit } : undefined;
     case 'avatar': {
       const avatar = parseAvatar(m.avatar);
       return avatar ? { t: 'avatar', avatar } : undefined;

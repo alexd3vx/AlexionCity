@@ -1,5 +1,12 @@
 import type { District } from './constants';
 import type { AvatarSpec } from './types';
+import type { BackgroundId } from './life/backgrounds';
+import type { BillLine } from './life/bills';
+import type { Placed, Rotation, UnitId } from './life/home';
+import type { Career, JobId } from './life/jobs';
+import type { Needs } from './life/needs';
+import type { ActivityKind } from './life/shop';
+import type { TutorialState } from './life/tutorial';
 
 /** Bumped when messages change in a way old clients cannot read. */
 export const PROTOCOL_VERSION = 1;
@@ -28,7 +35,8 @@ export type ErrorCode =
   | 'auth_failed'
   | 'banned'
   | 'rate_limited'
-  | 'bad_version';
+  | 'bad_version'
+  | 'not_ready';
 
 /** A player in the same area. `id` is only for this session and is what chat, block and report refer to. */
 export interface Peer {
@@ -69,7 +77,21 @@ export type ClientMessage =
   | { t: 'block'; targetId: string }
   | { t: 'unblock'; ref: string }
   | { t: 'report'; targetId: string; reason: ReportReason; details?: string }
-  | { t: 'ping'; ts: number };
+  | { t: 'ping'; ts: number }
+  // life: everything below is a request; the server checks it and answers with `life` or a notice
+  | { t: 'order'; item: string }
+  | { t: 'work'; job: JobId }
+  | { t: 'quit_job' }
+  | { t: 'start'; kind: ActivityKind }
+  | { t: 'stop' }
+  | { t: 'buy'; item: string; qty: number }
+  | { t: 'home'; op: 'enter' | 'exit' }
+  | { t: 'place'; item: string; x: number; z: number; rot: Rotation }
+  | { t: 'move_item'; id: string; x: number; z: number; rot: Rotation }
+  | { t: 'store_item'; id: string }
+  | { t: 'pay_bills' }
+  | { t: 'move_unit'; unit: UnitId }
+  | { t: 'statement' };
 
 export type ServerMessage =
   | { t: 'welcome'; id: string; channel: string; name: string; v: number; blocks: BlockEntry[] }
@@ -81,4 +103,55 @@ export type ServerMessage =
   | { t: 'blocks'; blocks: BlockEntry[] }
   | { t: 'correct'; seq: number; x: number; z: number }
   | { t: 'error'; code: ErrorCode }
-  | { t: 'pong'; ts: number };
+  | { t: 'pong'; ts: number }
+  | { t: 'life'; life: LifeSnapshot }
+  | { t: 'statement'; rows: StatementRow[] };
+
+export interface StatementRow {
+  /** Epoch milliseconds. */
+  at: number;
+  delta: number;
+  balance: number;
+  reason: string;
+}
+
+/** Everything about the player's life that the interface shows. The server sends a new one whenever it changes. */
+export interface LifeSnapshot {
+  balance: number;
+  needs: Needs;
+  background: BackgroundId;
+  debt: number;
+  /** Shifts finished in all jobs together. */
+  totalShifts: number;
+  /** The player's current job, if any. */
+  job?: JobId;
+  careers: Partial<Record<JobId, Career>>;
+  /** What the player is doing right now. Times are seconds left, so clocks need not agree. */
+  activity?: {
+    kind: ActivityKind | 'shift';
+    total: number;
+    remaining: number;
+    job?: JobId;
+    pay?: number;
+  };
+  home: {
+    /** The unit rented, or none after an eviction. */
+    unit: UnitId | null;
+    inside: boolean;
+    layout: Placed[];
+    comfort: number;
+  };
+  /** Furniture owned, by item id (placed or not). */
+  owned: Record<string, number>;
+  bills: {
+    /** Seconds in the city until the next bill. */
+    dueIn: number;
+    lines: BillLine[];
+    total: number;
+    /** Cycles of rent missed so far. */
+    overdue: number;
+    /** Unpaid from earlier cycles, including late fees. */
+    owing: number;
+  };
+  tutorial: TutorialState;
+}

@@ -7,3 +7,4 @@ export * from './names';
 export * from './world/collision';
 export * from './world/models';
 export * from './world/layout';
+export * from './life';

@@ -32,6 +32,35 @@ describe('parseClientMessage', () => {
     expect(send({ t: 'ping', ts: 5 })).toEqual({ t: 'ping', ts: 5 });
   });
 
+  it('accepts every valid life message', () => {
+    expect(send({ t: 'order', item: 'slice' })).toEqual({ t: 'order', item: 'slice' });
+    expect(send({ t: 'work', job: 'kitchen' })).toEqual({ t: 'work', job: 'kitchen' });
+    expect(send({ t: 'quit_job' })).toEqual({ t: 'quit_job' });
+    expect(send({ t: 'start', kind: 'sleep' })).toEqual({ t: 'start', kind: 'sleep' });
+    expect(send({ t: 'stop' })).toEqual({ t: 'stop' });
+    expect(send({ t: 'buy', item: 'sofa', qty: 2 })).toEqual({ t: 'buy', item: 'sofa', qty: 2 });
+    expect(send({ t: 'home', op: 'enter' })).toEqual({ t: 'home', op: 'enter' });
+    expect(send({ t: 'place', item: 'sofa', x: 1, z: 2, rot: 3 })).toEqual({
+      t: 'place',
+      item: 'sofa',
+      x: 1,
+      z: 2,
+      rot: 3,
+    });
+    expect(send({ t: 'move_item', id: 'ab12', x: 0, z: 0, rot: 0 })).toMatchObject({
+      t: 'move_item',
+    });
+    expect(send({ t: 'store_item', id: 'ab12' })).toEqual({ t: 'store_item', id: 'ab12' });
+    expect(send({ t: 'pay_bills' })).toEqual({ t: 'pay_bills' });
+    expect(send({ t: 'move_unit', unit: 'flat' })).toEqual({ t: 'move_unit', unit: 'flat' });
+    expect(send({ t: 'statement' })).toEqual({ t: 'statement' });
+  });
+
+  it('ignores extra fields on life messages', () => {
+    expect(send({ t: 'order', item: 'slice', price: 0 })).toEqual({ t: 'order', item: 'slice' });
+    expect(send({ t: 'stop', free: true })).toEqual({ t: 'stop' });
+  });
+
   it.each([
     'not json',
     '[]',
@@ -50,6 +79,20 @@ describe('parseClientMessage', () => {
     JSON.stringify({ t: 'emote', emote: 'dab' }),
     JSON.stringify({ t: 'report', targetId: 'p3', reason: 'because' }),
     JSON.stringify({ t: 'block', targetId: '' }),
+    JSON.stringify({ t: 'order', item: '' }),
+    JSON.stringify({ t: 'order', item: 'x'.repeat(40) }),
+    JSON.stringify({ t: 'work', job: 'president' }),
+    JSON.stringify({ t: 'start', kind: 'fly' }),
+    JSON.stringify({ t: 'buy', item: 'sofa', qty: 0 }),
+    JSON.stringify({ t: 'buy', item: 'sofa', qty: 11 }),
+    JSON.stringify({ t: 'buy', item: 'sofa', qty: 1.5 }),
+    JSON.stringify({ t: 'buy', item: 'sofa', qty: '2' }),
+    JSON.stringify({ t: 'home', op: 'sell' }),
+    JSON.stringify({ t: 'place', item: 'sofa', x: 1.5, z: 2, rot: 0 }),
+    JSON.stringify({ t: 'place', item: 'sofa', x: 1, z: 2, rot: 4 }),
+    JSON.stringify({ t: 'place', item: 'sofa', x: 'a', z: 2, rot: 0 }),
+    JSON.stringify({ t: 'move_item', id: '', x: 1, z: 2, rot: 0 }),
+    JSON.stringify({ t: 'move_unit', unit: 'palace' }),
   ])('rejects %s', (raw) => {
     expect(parseClientMessage(raw)).toBeUndefined();
   });

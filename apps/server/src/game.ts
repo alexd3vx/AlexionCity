@@ -19,6 +19,7 @@ import type { Verifier } from './auth';
 import { ChannelRegistry } from './channels';
 import { cleanName, parseClientMessage } from './messages';
 import { ChatGuard } from './moderation';
+import { isLifeMessage, type LifeHandle, type LifeService } from './life';
 import type { ChatRow, Store } from './store';
 
 /** What the game needs from a connection; `ws` sockets satisfy it. */
@@ -30,6 +31,8 @@ export interface Connection {
 export interface GameOptions {
   verifier: Verifier;
   store: Store;
+  /** The rules of players' lives (needs, work, money). Without it only walking and chat work. */
+  life?: LifeService;
   now?: () => number;
   channelCapacity?: number;
 }
@@ -62,6 +65,8 @@ interface Player {
   placed: boolean;
   /** Users this player has blocked, by user id. */
   blocked: Map<string, string>;
+  /** In their own home: hidden from the city and unable to chat. */
+  inside: boolean;
   /** What each nearby player looked like the last time this player was told. */
   known: Map<string, Sent>;
   guard: ChatGuard;
@@ -111,6 +116,7 @@ export class GameServer {
       version: 0,
       lastMoveAt: this.now(),
       placed: false,
+      inside: false,
       blocked: new Map(),
       known: new Map(),
       guard: new ChatGuard(),
@@ -123,7 +129,10 @@ export class GameServer {
     const p = this.players.get(id);
     if (!p) return;
     this.channels.leave(id);
-    if (p.userId && this.byUser.get(p.userId) === id) this.byUser.delete(p.userId);
+    if (p.userId && this.byUser.get(p.userId) === id) {
+      this.byUser.delete(p.userId);
+      void this.opts.life?.detach(p.userId);
+    }
     this.players.delete(id);
   }
 
@@ -140,6 +149,10 @@ export class GameServer {
     if (msg.t === 'ping') return this.send(p, { t: 'pong', ts: msg.ts });
     if (msg.t === 'join') return this.join(p, msg);
     if (p.state !== 'joined') return this.send(p, { t: 'error', code: 'not_joined' });
+    if (isLifeMessage(msg)) {
+      if (!this.opts.life?.has(p.userId)) return this.send(p, { t: 'error', code: 'not_ready' });
+      return this.opts.life.handle(p.userId, msg);
+    }
 
     switch (msg.t) {
       case 'move':
@@ -191,6 +204,8 @@ export class GameServer {
         this.send(old, { t: 'notice', text: 'You signed in somewhere else.', level: 'info' });
         old.conn.close(4000);
         this.disconnect(existing);
+        // let the old session finish saving before the new one loads
+        await this.opts.life?.detach(identity.userId);
       }
     }
 
@@ -211,6 +226,16 @@ export class GameServer {
     p.blocked = new Map(blocks.map((b) => [b.blockedId, b.name]));
     p.channel = this.channels.join(msg.district, p.id);
     p.lastMoveAt = this.now();
+    if (this.opts.life) {
+      const ok = await this.opts.life.attach(identity.userId, this.lifeHandle(p));
+      if (!this.players.has(p.id)) return void this.opts.life.detach(identity.userId);
+      if (!ok)
+        this.send(p, {
+          t: 'notice',
+          text: 'Your life could not be loaded, so work and shopping are off for now. Walking and chat still work.',
+          level: 'warning',
+        });
+    }
     p.state = 'joined';
     this.send(p, {
       t: 'welcome',
@@ -223,6 +248,7 @@ export class GameServer {
   }
 
   private move(p: Player, msg: Extract<ClientMessage, { t: 'move' }>): void {
+    if (p.inside) return; // indoors the player is not in the city
     const t = this.now();
     const dt = (t - p.lastMoveAt) / 1000;
     p.lastMoveAt = t;
@@ -245,12 +271,24 @@ export class GameServer {
     const out: Player[] = [];
     for (const id of this.channels.membersOf(p.channel)) {
       const q = this.players.get(id);
-      if (q && q.state === 'joined' && Math.hypot(q.x - p.x, q.z - p.z) <= radius) out.push(q);
+      if (
+        q &&
+        q.state === 'joined' &&
+        (!q.inside || q === p) &&
+        Math.hypot(q.x - p.x, q.z - p.z) <= radius
+      )
+        out.push(q);
     }
     return out;
   }
 
   private chat(p: Player, raw: string): void {
+    if (p.inside)
+      return this.send(p, {
+        t: 'notice',
+        text: 'Nobody can hear you inside your home.',
+        level: 'info',
+      });
     const verdict = p.guard.check(raw, this.now());
     if (!verdict.ok) return this.send(p, { t: 'notice', text: verdict.message, level: 'warning' });
 
@@ -403,6 +441,31 @@ export class GameServer {
       if (add.length > 0 || remove.length > 0) this.send(p, { t: 'peers', add, remove });
       if (updates.length > 0) this.send(p, { t: 'pos', u: updates });
     }
+  }
+
+  /** What the life rules may ask of one player. */
+  private lifeHandle(p: Player): LifeHandle {
+    return {
+      position: () => ({ x: p.x, z: p.z }),
+      send: (message) => this.send(p, message),
+      notice: (text, level = 'info') => this.send(p, { t: 'notice', text, level }),
+      setInside: (inside) => {
+        p.inside = inside;
+        p.version++;
+      },
+      moveTo: (x, z) => {
+        p.x = x;
+        p.z = z;
+        p.placed = true;
+        p.lastMoveAt = this.now();
+        this.send(p, { t: 'correct', seq: 0, x, z });
+      },
+    };
+  }
+
+  /** Move players' lives on by `seconds`. Call about once a second. */
+  async tickLife(seconds: number): Promise<void> {
+    await this.opts.life?.tick(seconds);
   }
 
   /** Write queued chat to the log. Call every few seconds. */

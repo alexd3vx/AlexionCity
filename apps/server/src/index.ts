@@ -1,6 +1,8 @@
 import { verifierFromEnv } from './auth';
 import { GameServer } from './game';
 import { startServer } from './server';
+import { LifeService } from './life';
+import { MemoryLifeStore, SupabaseLifeStore, type LifeStore } from './life-store';
 import { MemoryStore, SupabaseStore, type Store } from './store';
 
 const env = process.env;
@@ -22,10 +24,14 @@ const store: Store = supabase
   ? new SupabaseStore(env.SUPABASE_URL!, env.SUPABASE_SECRET_KEY!)
   : new MemoryStore();
 
+const lifeStore: LifeStore = supabase
+  ? new SupabaseLifeStore(env.SUPABASE_URL!, env.SUPABASE_SECRET_KEY!)
+  : new MemoryLifeStore();
+
 const server = await startServer({
   port,
   allowedOrigins,
-  game: new GameServer({ verifier, store }),
+  game: new GameServer({ verifier, store, life: new LifeService({ store: lifeStore }) }),
 });
 console.log(
   `game server listening on :${server.port} | origins: ${allowedOrigins.join(', ') || 'any'} | ` +

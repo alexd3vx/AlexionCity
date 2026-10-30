@@ -8,6 +8,8 @@ export interface ServerOptions {
   /** Origins allowed to open a socket. Empty means any origin, which is fine for local development only. */
   allowedOrigins?: string[];
   tickHz?: number;
+  /** How often lives advance by one second. Tests make it faster. */
+  lifeTickMs?: number;
 }
 
 export interface RunningServer {
@@ -65,6 +67,8 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   });
 
   const tick = setInterval(() => game.broadcast(), 1000 / (opts.tickHz ?? 8));
+  // one real second of life per second, however many players there are
+  const life = setInterval(() => void game.tickLife(1).catch(() => {}), opts.lifeTickMs ?? 1000);
   const logs = setInterval(() => void game.flushLogs().catch(() => {}), 5000);
 
   await new Promise<void>((resolve) => http.listen(opts.port, resolve));
@@ -78,6 +82,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       new Promise<void>((resolve) => {
         clearInterval(tick);
         clearInterval(logs);
+        clearInterval(life);
         void game.flushLogs().catch(() => {});
         for (const client of wss.clients) client.terminate();
         wss.close(() => http.close(() => resolve()));
