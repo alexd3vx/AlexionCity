@@ -50,6 +50,15 @@ flowchart LR
 - **Client** (`apps/client/src`): `net/client.ts` keeps the connection alive and sends the player's position about 10 times a second, only when it changed; `net/room.ts` and `net/useMultiplayer.ts` turn server messages into interface state and world calls; `game/remote.ts` draws other players (capsule first, real avatar when built), `game/labels.ts` draws name tags and bubbles as page elements.
 - **Peers have a session id, not an account id.** Chat, block and report refer to that id; the server maps it to the account, so the browser never learns anyone's account id.
 
+## How life works
+
+- **Rules are shared, state is the server's.** `packages/shared/src/life` holds the rules as plain functions and data: how fast needs fall, what a job pays, what a meal costs, what furniture exists and where it may stand. The browser uses them to show choices and disable buttons; the server uses the same code to decide, so they cannot drift apart.
+- **The server decides, the browser asks.** Requests are small messages (`order`, `work`, `buy`, `place`...). The server checks where the player is (against the same city layout the browser draws), what they have and what the rules allow, then answers with the new `life` snapshot or a notice. Prices, wages and positions sent by the browser are never used.
+- **Money is a ledger.** `apps/server/src/life.ts` never edits a balance. It calls the store, which calls the database's `apply_ledger` (wages, meals, bills) or `purchase_item` (charge and deliver in one transaction). Every call carries a fixed reference, so a retry is safe, and when the database fails the player is told and nothing changes.
+- **Time only runs while you are here.** Needs, shifts and bills advance in one-second steps for connected players. Away means standing still, so nobody returns to a lost home.
+- **Homes are instanced and arranged on a grid.** Indoors a player is hidden from the city and the browser draws their own room (`apps/client/src/game/interior.ts`) from the layout the server holds. Placing, moving and storing furniture are requests; the server re-checks ownership and fit with the same `canPlace` the browser used to colour the ghost.
+- **One store interface, two backends.** `LifeStore` has a Supabase implementation (REST, secret key) and a memory one with identical rules, used by tests and by local play. Development guests (ids that are not real accounts) live in memory even when Supabase is configured.
+
 ## How the world is drawn
 
 - **Layout is data.** `apps/client/src/game/district/layout.ts` builds streets, blocks, buildings, furniture, colliders and places from a seed. The same layout drives the default look, the model look, collisions, the minimap and the map.

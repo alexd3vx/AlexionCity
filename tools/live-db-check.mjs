@@ -116,8 +116,118 @@ check(
   (s, b) => s === 200 && b[0].balance === 100,
 );
 
+// ---- Phase 3: characters, homes and purchases --------------------------------------------------
+const start = {
+  body: {
+    p_user: uid,
+    p_background: 'newcomer',
+    p_money: 400,
+    p_debt: 0,
+    p_unit: 'studio',
+    p_needs: { hunger: 80, energy: 85, mood: 70, hygiene: 85 },
+    p_next_due: 3600,
+    p_layout: [{ id: 'a1', item: 'bed-single', x: 0, z: 3, rot: 0 }],
+    p_items: [{ item: 'furniture:bed-single', qty: 1 }],
+  },
+};
+check(
+  'player CANNOT create a character for themselves',
+  await call('POST', '/rest/v1/rpc/create_character', PUB, { ...player, ...start }),
+  (s) => denied(s) || s === 404,
+);
+check(
+  'player CANNOT buy for free',
+  await call('POST', '/rest/v1/rpc/purchase_item', PUB, {
+    ...player,
+    body: { p_user: uid, p_item: 'furniture:sofa', p_qty: 1, p_unit_price: 1, p_ref: 'cheat' },
+  }),
+  (s) => denied(s) || s === 404,
+);
+check(
+  'server CAN create the character, with starting money',
+  await call('POST', '/rest/v1/rpc/create_character', SEC, start),
+  (s, b) => s === 200 && b === true,
+);
+check(
+  'creating twice changes nothing',
+  await call('POST', '/rest/v1/rpc/create_character', SEC, start),
+  (s, b) => s === 200 && b === false,
+);
+check(
+  'player reads their own character',
+  await call('GET', '/rest/v1/characters?select=background,unit,next_due', PUB, player),
+  (s, b) => s === 200 && b.length === 1 && b[0].background === 'newcomer' && b[0].unit === 'studio',
+);
+check(
+  'player reads their own home',
+  await call('GET', '/rest/v1/homes?select=layout', PUB, player),
+  (s, b) => s === 200 && b.length === 1 && b[0].layout.length === 1,
+);
+check(
+  'player CANNOT edit their character',
+  await call('PATCH', `/rest/v1/characters?user_id=eq.${uid}`, PUB, {
+    ...player,
+    body: { needs: { hunger: 100, energy: 100, mood: 100, hygiene: 100 }, owing: 0 },
+  }),
+  (s) => denied(s),
+);
+check(
+  'player CANNOT edit their home or inventory',
+  await call('PATCH', `/rest/v1/homes?user_id=eq.${uid}`, PUB, { ...player, body: { layout: [] } }),
+  (s) => denied(s),
+);
+check(
+  'player CANNOT add to their inventory',
+  await call('POST', '/rest/v1/inventory', PUB, {
+    ...player,
+    body: { user_id: uid, item_id: 'furniture:gold-throne', quantity: 99 },
+  }),
+  (s) => denied(s),
+);
+const buy = {
+  body: { p_user: uid, p_item: 'furniture:plant', p_qty: 2, p_unit_price: 35, p_ref: 'live-buy-1' },
+};
+check(
+  'server CAN sell an item: charged and delivered together',
+  await call('POST', '/rest/v1/rpc/purchase_item', SEC, buy),
+  (s, b) => s === 200 && b === 100 + 400 - 70,
+);
+check(
+  'a retry of the same purchase neither charges nor delivers twice',
+  await call('POST', '/rest/v1/rpc/purchase_item', SEC, buy),
+  (s, b) => s === 200 && b === 100 + 400 - 70,
+);
+check(
+  'player sees exactly two plants',
+  await call('GET', '/rest/v1/inventory?item_id=eq.furniture:plant&select=quantity', PUB, player),
+  (s, b) => s === 200 && b.length === 1 && b[0].quantity === 2,
+);
+check(
+  'a purchase the player cannot afford is refused and delivers nothing',
+  await call('POST', '/rest/v1/rpc/purchase_item', SEC, {
+    body: {
+      p_user: uid,
+      p_item: 'furniture:sofa',
+      p_qty: 1,
+      p_unit_price: 99999,
+      p_ref: 'live-buy-2',
+    },
+  }),
+  (s, b) => s === 400 && JSON.stringify(b).includes('insufficient_funds'),
+);
+check(
+  'player still has no sofa and the same balance',
+  await call('GET', '/rest/v1/wallets?select=balance', PUB, player),
+  (s, b) => s === 200 && b[0].balance === 430,
+);
+
 const deleted = await call('DELETE', `/auth/v1/admin/users/${uid}`, SEC);
 check('server deletes the test account', deleted, (s) => s === 200 || s === 204);
+check(
+  'its character and home are gone with it',
+  await call('GET', `/rest/v1/characters?user_id=eq.${uid}&select=user_id`, SEC),
+  (s, b) => s === 200 && b.length === 0,
+);
 check(
   'its profile is gone with it',
   await call('GET', `/rest/v1/profiles?id=eq.${uid}&select=id`, SEC),

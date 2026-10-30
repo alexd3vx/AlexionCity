@@ -593,6 +593,38 @@ describe('moving house', () => {
   });
 });
 
+describe('floods', () => {
+  it('drops requests beyond a short queue instead of piling up database work', async () => {
+    const { life, join, store } = rig();
+    const ada = await join('ada', { at: poi('food') });
+    let calls = 0;
+    const real = store.applyLedger.bind(store);
+    store.applyLedger = async (...a) => {
+      calls += 1;
+      await new Promise((r) => setTimeout(r, 1));
+      return real(...a);
+    };
+    const all = Array.from({ length: 60 }, () => life.handle('ada', { t: 'order', item: 'soda' }));
+    await Promise.all(all);
+    expect(calls).toBeLessThanOrEqual(13);
+    expect(ada.notices.filter((n) => /Slow down/.test(n)).length).toBeGreaterThan(40);
+    // and the money matches what was actually served
+    expect(store.balanceOf('ada')).toBe(2500 - 3 * calls);
+  });
+
+  it('answers statement requests at most once a second, and the last one still gets its answer', async () => {
+    const { life, join } = rig();
+    const ada = await join('ada');
+    await life.handle('ada', { t: 'statement' });
+    await life.handle('ada', { t: 'statement' });
+    await life.handle('ada', { t: 'statement' });
+    expect(ada.messages.filter((m) => m.t === 'statement')).toHaveLength(1);
+    await new Promise((r) => setTimeout(r, 1100));
+    expect(ada.messages.filter((m) => m.t === 'statement')).toHaveLength(2);
+    await life.detach('ada');
+  });
+});
+
 describe('the bank', () => {
   it('lists recent ledger rows, newest first', async () => {
     const { life, join } = rig();

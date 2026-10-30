@@ -50,6 +50,10 @@ export const USE_RANGE = 18;
 const LEAVE_WORK_RANGE = 30;
 const SAVE_EVERY_SECONDS = 30;
 const MAX_BUY = 10;
+/** Requests waiting behind one player's current one. More than this are dropped, so a flood cannot pile up database work. */
+const MAX_PENDING = 12;
+/** The statement is a database read; once a second is plenty. */
+const STATEMENT_EVERY_MS = 1000;
 
 /** What the life rules need to know about the connected player, and how to reach them. */
 export interface LifeHandle {
@@ -123,6 +127,9 @@ interface Session {
   sinceSave: number;
   lastSent: string;
   queue: Promise<void>;
+  pending: number;
+  lastStatement: number;
+  statementTimer?: ReturnType<typeof setTimeout> | undefined;
   gone: boolean;
 }
 
@@ -197,6 +204,8 @@ export class LifeService {
         sinceSave: 0,
         lastSent: '',
         queue: Promise.resolve(),
+        pending: 0,
+        lastStatement: 0,
         gone: false,
       };
       this.sessions.set(userId, session);
@@ -213,6 +222,7 @@ export class LifeService {
     const s = this.sessions.get(userId);
     if (!s) return this.leaving.get(userId) ?? Promise.resolve();
     s.gone = true;
+    clearTimeout(s.statementTimer);
     this.sessions.delete(userId);
     const done = (async () => {
       await s.queue;
@@ -429,10 +439,19 @@ export class LifeService {
   handle(userId: string, msg: LifeMessage): Promise<void> {
     const s = this.sessions.get(userId);
     if (!s) return Promise.resolve();
+    if (s.pending >= MAX_PENDING) {
+      s.handle.notice('Slow down a little.', 'warning');
+      return Promise.resolve();
+    }
+    s.pending += 1;
     return this.run(s, async () => {
-      if (s.gone) return;
-      await this.dispatch(s, msg);
-      this.push(s);
+      try {
+        if (s.gone) return;
+        await this.dispatch(s, msg);
+        this.push(s);
+      } finally {
+        s.pending -= 1;
+      }
     });
   }
 
@@ -465,12 +484,22 @@ export class LifeService {
         return this.payBills(s);
       case 'move_unit':
         return this.moveUnit(s, msg.unit);
-      case 'statement':
-        return s.handle.send({
-          t: 'statement',
-          rows: await this.opts.store.statement(s.userId, 25),
-        });
+      case 'statement': {
+        // at most one database read a second; a request that comes too soon is answered when the second is up
+        const wait = STATEMENT_EVERY_MS - (Date.now() - s.lastStatement);
+        if (wait <= 0) return this.sendStatement(s);
+        s.statementTimer ??= setTimeout(() => {
+          s.statementTimer = undefined;
+          if (!s.gone) void this.run(s, () => this.sendStatement(s));
+        }, wait);
+        return;
+      }
     }
+  }
+
+  private async sendStatement(s: Session): Promise<void> {
+    s.lastStatement = Date.now();
+    s.handle.send({ t: 'statement', rows: await this.opts.store.statement(s.userId, 25) });
   }
 
   private busy(s: Session): boolean {

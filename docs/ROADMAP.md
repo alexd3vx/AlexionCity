@@ -65,6 +65,8 @@ Each phase ends in a playable, tested build and must pass its gate before the ne
 
 - **Phase 2 Multiplayer:** built and tested with two real browsers; see `PHASE-2-CHECKLIST.md` and how to try it in `TESTING.md`. Still needs a game server on an always-on host, a play test with real people, and provider login set up in Supabase.
 
+- **Phase 3 Economy and homes:** built; see `PHASE-3-CHECKLIST.md`. Met the gate with a memory store; the database migration still has to be applied to Supabase, and the economy needs tuning from play.
+
 Assumption to confirm: launch is Phases 0 to 7; the "After launch" row ships as updates.
 
 ## Open items
