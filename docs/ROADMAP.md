@@ -58,6 +58,11 @@ Each phase ends in a playable, tested build and must pass its gate before the ne
 | 7 Launch hardening    | Load test to the player target, security review, lawyer review, internal test pass                                                      | No blockers; release                                                          |
 | After launch          | Countries and flights, boats and yachts, helicopters and jets, commercial planes, regional currencies, languages                        | Shipped as updates                                                            |
 
+## Status
+
+- **Phase 0 Foundation:** built; see `PHASE-0-CHECKLIST.md`. Still needs a hosted staging copy and the migration run on Supabase.
+- **Phase 1 World:** built and tested here; see `PHASE-1-CHECKLIST.md`. Still needs a real-phone test and a yes on the HUD style.
+
 Assumption to confirm: launch is Phases 0 to 7; the "After launch" row ships as updates.
 
 ## Open items

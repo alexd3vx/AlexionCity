@@ -24,6 +24,15 @@ pnpm assets:validate                # model licence manifest
 pnpm build                          # production builds
 ```
 
+## Try it with real models
+
+```bash
+pnpm assets:build                  # builds packs from assets-src/raw into packs-out (raw models are not in git)
+pnpm dev:client                    # then open http://localhost:5173/?autodl&debug
+```
+
+`?autodl` downloads every pack at start, `?debug` shows fps, draw calls and triangles, and `?t=21:30` freezes the time of day. `/#lab` and `/#gallery` are developer pages for avatars and models. `pnpm perf` checks the draw-call and triangle budget.
+
 ## Layout
 
 `apps/client` game, `apps/server` live server, `apps/admin` admin placeholder, `packages/shared` shared rules and types, `packages/asset-tools` model pipeline, `supabase` database, `assets-src` model licences and pack definitions. More in `docs/ARCHITECTURE.md`, `docs/HOSTING.md` and `docs/ASSETS.md`.

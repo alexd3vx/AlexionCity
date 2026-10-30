@@ -22,13 +22,13 @@ On a machine without `assets-src/raw`, `assets:validate` checks only the manifes
 | city-extras (half the triangles) | 8      | 8.7 MB  | 7.2 MB  |
 | interiors (furniture kit)        | 117    | 2.9 MB  | 0.8 MB  |
 
-Required packs on first load: avatars plus city-core, about 12.7 MB.
+Required packs on first load: avatars plus city-core, about 6.8 MB.
 
 It welds vertices, optionally simplifies, removes duplicates and unused data, quantizes, and compresses with meshopt. The client reads meshopt, and the 3D loader must register the decoder when Phase 1 loads models.
 
 ## Known limits
 
 - **Simplification is patchy.** It works on single-material models (the hospital drops from 12,600 to 3,800 triangles at 30%). It barely changes the faceted multi-material models (town house 41,800 to 32,300) or the skinned characters. Heavy models such as the town house and the GTR-style car need a Blender decimate pass or a hand-made lighter version before they appear in a busy street.
-- **Characters repeat their animations.** Each of the 21 characters carries the same 24 animation clips, about a quarter to a third of each raw file. Phase 1 should ship the clips once and strip them from the characters.
+- **Avatars are split.** The pipeline cuts each character into head, body, legs and feet files and ships the skeleton and 24 animation clips once per body frame, which is why the avatar pack is half the size and parts can be mixed. Each part's quantization is baked into its bind matrices, so the client brings parts into one space before merging them.
 - **Textures are not compressed yet.** KTX2 needs an external encoder. The extras pack is mostly textures, which is why it only shrinks from 8.7 to 7.2 MB.
 - **Four cars carry real brand names** (Nissan 180MX, Dodge Challenger, Nissan GTR, Mitsubishi L200). They are in `licences.json` but not in any pack. They are reworked into fictional cars first.

@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { QualityTier } from '@alexioncity/shared';
 import type { AssetStore } from '../assets';
 import { PITCH, type Layout, type Placement } from './layout';
-import { dims, MODELS, type ModelId } from './models';
+import { dims, DISTRICT_PACKS, MODELS, type ModelId } from './models';
 import {
   bakeUntextured,
   hasTexture,
@@ -114,6 +114,7 @@ export function createDistrictView(layout: Layout, tier: QualityTier): DistrictV
     group.add(holder);
   }
 
+  let builtFrom = '';
   const view: DistrictView = {
     group,
     detailed: false,
@@ -141,11 +142,40 @@ export function createDistrictView(layout: Layout, tier: QualityTier): DistrictV
       baked.emissiveIntensity = g * 0.55;
     },
     async upgrade(store) {
-      if (view.detailed) return;
+      // rebuild only when a pack the district uses has become available since the last time
+      const available = DISTRICT_PACKS.filter((pack) => store.has(pack)).join(',');
+      if (available === builtFrom) return;
+      for (const holder of near.values()) holder.removeFromParent();
+      near.clear();
+      isNear.clear();
       for (const [key, list] of blocks) {
         const holder = new THREE.Group();
         holder.visible = false;
         for (const [id, placements] of groupBlockByModel(list)) {
+          // a model whose pack is not downloaded keeps its simple stand-in, so nothing goes missing
+          if (!store.has(MODELS[id].pack)) {
+            const fallback = new THREE.InstancedMesh(
+              standIn(id),
+              MODELS[id].kind === 'building' ? windows : plain,
+              placements.length,
+            );
+            placements.forEach((p, i) => {
+              quaternion.setFromAxisAngle(up, p.yaw);
+              fallback.setMatrixAt(
+                i,
+                matrix.compose(
+                  new THREE.Vector3(p.x, 0, p.z),
+                  quaternion,
+                  new THREE.Vector3(1, 1, 1),
+                ),
+              );
+            });
+            fallback.instanceMatrix.needsUpdate = true;
+            fallback.computeBoundingSphere();
+            fallback.receiveShadow = tier === 'high';
+            holder.add(fallback);
+            continue;
+          }
           for (const piece of await piecesFor(id, store, tier, disposables, baked)) {
             const def = MODELS[id];
             const instanced = new THREE.InstancedMesh(
@@ -174,6 +204,7 @@ export function createDistrictView(layout: Layout, tier: QualityTier): DistrictV
         near.set(key, holder);
         group.add(holder);
       }
+      builtFrom = available;
       view.detailed = true;
     },
     dispose() {

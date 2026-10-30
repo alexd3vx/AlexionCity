@@ -40,6 +40,12 @@ export interface WorldState {
   action?: Action;
   /** A passer-by close enough to talk to. */
   talk?: Action;
+  /** Direction the camera looks along the ground, radians. */
+  camYaw: number;
+  /** Where the player chose to go, with the distance and which way to turn (positive is right). */
+  waypoint?: { poiId: string; name: string; distance: number; angle: number };
+  /** Set for a few seconds after reaching the destination. */
+  arrived?: string;
   look: 'default' | 'models';
   avatars: boolean;
   stats: { fps: number; calls: number; triangles: number };
@@ -69,6 +75,8 @@ export interface World {
   setMinutes(minutes: number | undefined): void;
   onState(listener: (state: WorldState) => void): () => void;
   teleport(x: number, z: number): void;
+  /** Mark a place as the destination, or clear it with undefined. */
+  setWaypoint(poiId: string | undefined): void;
   dispose(): void;
 }
 
@@ -137,6 +145,30 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
   let avatar: Avatar | undefined;
   let crowd: Pedestrians | undefined;
 
+  // destination marker: a tall translucent beam with a ring on the ground
+  const beacon = new THREE.Group();
+  const beamMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff7a1a,
+    transparent: true,
+    opacity: 0.32,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    fog: false,
+  });
+  const beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.7, 0.7, 60, 16, 1, true).translate(0, 30, 0),
+    beamMaterial,
+  );
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(1.4, 1.9, 28).rotateX(-Math.PI / 2).translate(0, 0.1, 0),
+    new THREE.MeshBasicMaterial({ color: 0xff7a1a, side: THREE.DoubleSide, fog: false }),
+  );
+  beacon.add(beam, ring);
+  beacon.visible = false;
+  scene.add(beacon);
+  let waypoint: Poi | undefined;
+  let arrived: { name: string; until: number } | undefined;
+
   let input: Input = { x: 0, y: 0, run: false };
   let px = layout.spawn.x;
   let pz = layout.spawn.z;
@@ -179,6 +211,15 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
     return best.name;
   };
 
+  const waypointInfo = (poi: Poi) => {
+    const dx = poi.x - px;
+    const dz = poi.z - pz;
+    const toTarget = Math.atan2(dx, dz);
+    // positive angle: the target is to the right of where the camera looks
+    const turn = -(((toTarget - camYaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    return { poiId: poi.id, name: poi.name, distance: Math.hypot(dx, dz), angle: turn };
+  };
+
   const buildState = (minutes: number): WorldState => {
     const places = layout.pois
       .map((poi) => ({ poi, distance: Math.hypot(poi.x - px, poi.z - pz) }))
@@ -201,6 +242,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
         ? { action: { label: ACTION_LABEL[near.poi.icon](near.poi.name)!, poiId: near.poi.id } }
         : {}),
       ...(passer ? { talk: { label: 'Talk · Passer-by' } } : {}),
+      camYaw,
+      ...(waypoint ? { waypoint: waypointInfo(waypoint) } : {}),
+      ...(arrived && arrived.until > performance.now() ? { arrived: arrived.name } : {}),
       look: city.detailed ? 'models' : 'default',
       avatars: Boolean(avatar),
       stats: { fps: Math.round(fps), calls: info.calls, triangles: info.triangles },
@@ -278,6 +322,16 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
     sun.position.set(px + sunDir.x * 90, sunDir.y * 90, pz + sunDir.z * 90);
     sun.target.position.set(px, 0, pz);
 
+    if (waypoint) {
+      beacon.position.set(waypoint.x, 0, waypoint.z);
+      beamMaterial.opacity = 0.28 + Math.sin(now / 350) * 0.08;
+      if (Math.hypot(waypoint.x - px, waypoint.z - pz) < 5) {
+        arrived = { name: waypoint.name, until: now + 3500 };
+        waypoint = undefined;
+        beacon.visible = false;
+      }
+    }
+
     renderer.render(scene, camera);
 
     if (now - lastEmit > 180 && listeners.size > 0) {
@@ -301,7 +355,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       camera.updateProjectionMatrix();
     },
     async upgradeCity(store) {
-      if (city.detailed || !DISTRICT_PACKS.every((p) => store.has(p))) return false;
+      // the core city pack is enough; models from optional packs fill in as they are downloaded
+      if (!store.has(DISTRICT_PACKS[0])) return false;
       await city.upgrade(store);
       return true;
     },
@@ -333,12 +388,21 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
       px = x;
       pz = z;
     },
+    setWaypoint(poiId) {
+      waypoint = poiId ? layout.pois.find((p) => p.id === poiId) : undefined;
+      beacon.visible = Boolean(waypoint);
+      arrived = undefined;
+    },
     dispose() {
       cancelAnimationFrame(raf);
       avatar?.dispose();
       crowd?.dispose();
       city.dispose();
       base.dispose();
+      beam.geometry.dispose();
+      beamMaterial.dispose();
+      ring.geometry.dispose();
+      (ring.material as THREE.Material).dispose();
       standIn.geometry.dispose();
       (standIn.material as THREE.Material).dispose();
       renderer.dispose();

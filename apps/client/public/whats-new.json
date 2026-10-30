@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.0",
+    "title": "The first district",
+    "notes": [
+      "Walk a real 3D city with day and night",
+      "Make your own look: outfits, skin tones, hair colours",
+      "Chase, high and overhead views, a map, and places to go"
+    ]
+  },
+  {
     "version": "0.0.1",
     "title": "Foundation",
     "notes": [

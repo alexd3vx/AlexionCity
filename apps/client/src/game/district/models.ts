@@ -296,5 +296,5 @@ export function dims(id: ModelId): Dims {
   return { scale, w: native.w * scale, h: native.h * scale, d: native.d * scale };
 }
 
-/** Packs the district's models come from. */
+/** Packs the district's models come from; the first is required, the rest are optional. */
 export const DISTRICT_PACKS = ['city-core', 'city-extras'] as const;

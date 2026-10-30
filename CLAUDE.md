@@ -8,6 +8,7 @@ Browser 3D life sim. Plan: `docs/ROADMAP.md`. Current phase checklist: `docs/PHA
 - `pnpm build` production builds; `pnpm format` runs Prettier.
 - `bash supabase/tests/run-local.sh` runs the database tests on a throwaway Postgres.
 - `pnpm assets:validate`, `pnpm assets:build` model licence check and pack build.
+- `pnpm perf` draw-call and triangle budget (needs `pnpm dev:client` running and built packs).
 
 ## Rules
 

@@ -41,3 +41,11 @@ flowchart LR
 | `packages/asset-tools` | Licence check, model optimizer, pack builder                      |
 | `supabase/`            | Migrations and database tests                                     |
 | `assets-src/`          | Licence manifest and pack definitions; raw models stay out of git |
+
+## How the world is drawn
+
+- **Layout is data.** `apps/client/src/game/district/layout.ts` builds streets, blocks, buildings, furniture, colliders and places from a seed. The same layout drives the default look, the model look, collisions, the minimap and the map.
+- **Two looks, one world.** Every block starts as one merged low-detail mesh. When the city pack is downloaded, blocks near the player are drawn from the real models instead, built as instanced meshes with each model's untextured parts baked into one geometry. A block switches by its distance to the player, with a small margin so it does not flicker.
+- **Avatars are one draw call.** Parts from different outfits are bound to the shared skeleton and merged, with colours baked in per vertex so skin and hair tints cost nothing extra.
+- **Budgets.** `pnpm perf` checks draw calls and triangles at four worst-case spots on both quality tiers.
+- **Dev pages.** `/#lab` shows twenty mixed avatars; `/#gallery` shows every city model with its axes. URL options in dev: `?t=21:30` freezes the time, `?autodl` downloads every pack, `?debug` shows fps, draw calls and triangles.

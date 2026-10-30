@@ -103,7 +103,7 @@ export function GameView({ onWorld }: { onWorld: (world: World | undefined) => v
   return (
     <div ref={box} className="absolute inset-0 touch-none select-none">
       <canvas ref={canvas} className="block h-full w-full" />
-      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-[max(1rem,env(safe-area-inset-left))]">
+      <div className="absolute bottom-[calc(max(0.6rem,env(safe-area-inset-bottom))+7.6rem)] left-[max(0.9rem,env(safe-area-inset-left))] z-[5]">
         <Joystick
           onChange={(x, y) => {
             keys.current.stickX = x;
