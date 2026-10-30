@@ -26,9 +26,18 @@ export function GameView({ onWorld }: { onWorld: (world: World | undefined) => v
     const el = canvas.current!;
     const params = new URLSearchParams(location.search);
     const time = params.get('t')?.match(/^(\d{1,2}):(\d{2})$/);
+    // developer shortcut: ?at=poi:Pizza Corner or ?at=x,z starts the player there
+    const at = import.meta.env.DEV ? params.get('at') : null;
+    const point = at?.match(/^(-?[\d.]+),(-?[\d.]+)$/);
+    const start = at?.startsWith('poi:')
+      ? { place: at.slice(4) }
+      : point
+        ? { x: Number(point[1]), z: Number(point[2]) }
+        : undefined;
     const w = createWorld(el, {
       tier: pickQuality(readDeviceHints()),
       overlay: overlay.current!,
+      ...(start ? { start } : {}),
       ...(time ? { fixedMinutes: Number(time[1]) * 60 + Number(time[2]) } : {}),
     });
     world.current = w;

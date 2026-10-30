@@ -1,4 +1,4 @@
-import { type BlockEntry, type ServerMessage } from '@alexioncity/shared';
+import type { BlockEntry, LifeSnapshot, ServerMessage, StatementRow } from '@alexioncity/shared';
 import type { NetStatus } from './client';
 
 export interface ChatLine {
@@ -26,22 +26,42 @@ export interface RoomState {
   name?: string;
   lines: ChatLine[];
   blocks: BlockEntry[];
+  /** The newest notice, for anything that only needs the last one. */
   notice?: Notice;
+  /** Recent notices in order, so none is lost when two arrive together. */
+  notices: Notice[];
   /** Chat lines that arrived while the chat sheet was closed. */
   unread: number;
+  /** The player's life: needs, money, job, home. Empty until the server has sent it. */
+  life?: LifeSnapshot;
+  /** When `life` arrived (milliseconds on this device's clock), so activity timers can count down. */
+  lifeAt?: number;
+  /** The bank statement, newest first, when the player asked for it. */
+  statement?: StatementRow[];
 }
 
 export const MAX_LINES = 60;
 
-export const initialRoom: RoomState = { status: 'offline', lines: [], blocks: [], unread: 0 };
+export const initialRoom: RoomState = {
+  status: 'offline',
+  lines: [],
+  blocks: [],
+  unread: 0,
+  notices: [],
+};
 
 export type RoomAction =
   | { type: 'status'; status: NetStatus; reason?: string | undefined }
-  | { type: 'message'; message: ServerMessage; muted: ReadonlySet<string> }
+  | { type: 'message'; message: ServerMessage; muted: ReadonlySet<string>; at?: number }
   | { type: 'read' };
 
 let counter = 0;
 const nextKey = () => ++counter;
+
+const withNotice = (state: RoomState, text: string, level: Notice['level']): RoomState => {
+  const notice: Notice = { key: nextKey(), text, level };
+  return { ...state, notice, notices: [...state.notices, notice].slice(-8) };
+};
 
 /** Pure state update for everything the server tells the player that the interface lists. */
 export function roomReducer(state: RoomState, action: RoomAction): RoomState {
@@ -63,8 +83,12 @@ export function roomReducer(state: RoomState, action: RoomAction): RoomState {
           return { ...state, selfId: m.id, channel: m.channel, name: m.name, blocks: m.blocks };
         case 'blocks':
           return { ...state, blocks: m.blocks };
+        case 'life':
+          return { ...state, life: m.life, lifeAt: action.at ?? 0 };
+        case 'statement':
+          return { ...state, statement: m.rows };
         case 'notice':
-          return { ...state, notice: { key: nextKey(), text: m.text, level: m.level } };
+          return withNotice(state, m.text, m.level);
         case 'chat': {
           const self = m.from === state.selfId;
           if (!self && action.muted.has(m.from)) return state;
@@ -84,10 +108,7 @@ export function roomReducer(state: RoomState, action: RoomAction): RoomState {
         }
         case 'error':
           return m.code === 'rate_limited'
-            ? {
-                ...state,
-                notice: { key: nextKey(), text: 'Slow down a little.', level: 'warning' },
-              }
+            ? withNotice(state, 'Slow down a little.', 'warning')
             : state;
         default:
           return state;

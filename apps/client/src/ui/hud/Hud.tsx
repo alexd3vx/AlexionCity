@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clockLabel, skyAt } from '../../game/daynight';
 import type { Content } from '../../game/content';
-import { tokens, type PoiIcon } from '@alexioncity/shared';
+import type { Poi, PoiIcon } from '@alexioncity/shared';
 import type { World, WorldState } from '../../game/world';
 import { VIEW_LABELS } from '../../game/cameras';
 import { Icon } from './icons';
@@ -10,9 +10,13 @@ import { drawMap } from './minimap';
 import { MapPanel, MePanel, SoonPanel } from './panels';
 import type { Multiplayer } from '../../net/useMultiplayer';
 import { AccountSection } from './account';
+import { BankSheet } from './bank';
+import { ActivityBar, CareerCard, HousingSection, NeedsPanel, TutorialChip, alex } from './life';
+import { ShopSheet } from './shop';
+import { VenueSheet } from './venue';
 import { ChatButton, ChatFeed, ChatSheet, ConnectionPill, PlayerCard } from './social';
 
-export type Tab = 'me' | 'buy' | 'map' | 'phone' | 'chat';
+export type Tab = 'me' | 'buy' | 'map' | 'phone' | 'chat' | 'bank' | 'venue';
 
 interface Props {
   world: World;
@@ -25,24 +29,21 @@ interface Props {
   onOpenDownloads: () => void;
 }
 
-const NEEDS = [
-  { key: 'Hunger', value: 0.72, color: tokens.need.hunger },
-  { key: 'Energy', value: 0.48, color: tokens.need.energy },
-  { key: 'Mood', value: 0.85, color: tokens.need.mood },
-  { key: 'Hygiene', value: 0.31, color: tokens.need.hygiene },
-] as const;
-
 const glass =
   'pointer-events-auto rounded-full bg-white/92 text-[#1b2340] shadow-[0_6px_18px_rgba(27,35,64,0.22)] backdrop-blur';
 
 function TopPill({
   world,
   state,
+  balance,
   onWhere,
+  onBank,
 }: {
   world: World;
   state: WorldState;
+  balance: number | undefined;
   onWhere: () => void;
+  onBank: () => void;
 }) {
   const night = skyAt(state.minutes).glow > 0.5;
   const home = world.layout.pois.find((p) => p.icon === 'home');
@@ -73,13 +74,17 @@ function TopPill({
           </span>
         </span>
       </button>
-      <span className="shrink-0 text-sm font-extrabold" title="Money arrives in Phase 3">
-        ₳ 0
-      </span>
       <button
-        aria-label="Add money"
+        aria-label={balance === undefined ? 'Bank' : `Bank, balance ${alex(balance)}`}
+        className="shrink-0 text-sm font-extrabold tabular-nums"
+        onClick={onBank}
+      >
+        {balance === undefined ? '₳ …' : alex(balance)}
+      </button>
+      <button
+        aria-label="Open bank"
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#ff7a1a] text-white active:scale-95"
-        onClick={onWhere}
+        onClick={onBank}
       >
         <Icon name="plus" className="h-5 w-5" />
       </button>
@@ -118,30 +123,6 @@ function SideButtons({
       <button aria-label="Settings" className={btn} onClick={onSettings}>
         <Icon name="gear" />
       </button>
-    </div>
-  );
-}
-
-function Needs() {
-  return (
-    <div
-      className="pointer-events-none w-[152px] rounded-2xl bg-[#1b2340]/72 px-3 py-2.5 text-white backdrop-blur"
-      aria-label="Needs preview"
-      title="Needs start working in Phase 3"
-    >
-      {NEEDS.map((n) => (
-        <div key={n.key} className="grid grid-cols-[52px_1fr] items-center gap-2 py-[3px]">
-          <span className="text-[9px] font-extrabold uppercase tracking-[0.1em] text-white/80">
-            {n.key}
-          </span>
-          <span className="h-[5px] overflow-hidden rounded-full bg-white/20">
-            <span
-              className="block h-full rounded-full"
-              style={{ width: `${n.value * 100}%`, background: n.color }}
-            />
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -254,42 +235,105 @@ export function Hud({
   onOpenDownloads,
 }: Props) {
   const [tab, setTab] = useState<Tab | null>(null);
+  const [venue, setVenue] = useState<Poi | undefined>();
+  // messages wait their turn, so two in a row (a wage, then "step done") are both read
   const [toast, setToast] = useState<string | undefined>();
+  const queue = useRef<string[]>([]);
   const timer = useRef<number | undefined>(undefined);
-  const show = useCallback((message: string) => {
+  const showing = useRef(false);
+  const next = useCallback(() => {
+    const message = queue.current.shift();
+    if (message === undefined) {
+      showing.current = false;
+      setToast(undefined);
+      return;
+    }
+    showing.current = true;
     setToast(message);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setToast(undefined), 2200);
+    timer.current = window.setTimeout(next, queue.current.length > 0 ? 1700 : 2400);
   }, []);
+  const show = useCallback(
+    (message: string) => {
+      if (queue.current.at(-1) === message) return;
+      queue.current.push(message);
+      if (queue.current.length > 5) queue.current.shift();
+      if (!showing.current) next();
+    },
+    [next],
+  );
+  useEffect(() => () => window.clearTimeout(timer.current), []);
 
   useEffect(() => {
     if (state.arrived) show(`You are at ${state.arrived}`);
   }, [state.arrived, show]);
 
-  // warnings from the game server (a blocked word, slow down) appear like any other toast
-  const notice = mp.room.notice;
+  // what the game server says (a blocked word, a wage, a bill) appears like any other toast
+  const lastNotice = useRef(0);
+  const notices = mp.room.notices;
   useEffect(() => {
-    if (notice) show(notice.text);
-  }, [notice, show]);
+    for (const n of notices) {
+      if (n.key <= lastNotice.current) continue;
+      lastNotice.current = n.key;
+      show(n.text);
+    }
+  }, [notices, show]);
+
+  /** What the main button does at each kind of place. */
+  const openAction = (poiId: string | undefined) => {
+    const poi = world.layout.pois.find((p) => p.id === poiId);
+    if (!poi) return;
+    switch (poi.icon) {
+      case 'home':
+        mp.act.home('enter');
+        break;
+      case 'atm':
+        setTab('bank');
+        break;
+      case 'park':
+        mp.act.start('stroll');
+        break;
+      case 'bus':
+        show('Buses come with vehicles, later on.');
+        break;
+      default:
+        setVenue(poi);
+        setTab('venue');
+    }
+  };
 
   const debug = new URLSearchParams(location.search).has('debug');
   // the destination bar sits under the top pill, so the side columns step down to make room
-  const columnTop = state.waypoint
-    ? 'top-[calc(max(0.6rem,env(safe-area-inset-top))+6.4rem)]'
-    : 'top-[calc(max(0.6rem,env(safe-area-inset-top))+3.4rem)]';
+  const bars =
+    (state.waypoint ? 1 : 0) +
+    (mp.room.life?.activity ? 1 : 0) +
+    (mp.room.status === 'online' || mp.room.status === 'offline' ? 0 : 1);
+  const columnTop = [
+    'top-[calc(max(0.6rem,env(safe-area-inset-top))+3.4rem)]',
+    'top-[calc(max(0.6rem,env(safe-area-inset-top))+6.4rem)]',
+    'top-[calc(max(0.6rem,env(safe-area-inset-top))+9.2rem)]',
+    'top-[calc(max(0.6rem,env(safe-area-inset-top))+12rem)]',
+  ][Math.min(bars, 3)]!;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 select-none">
       <div className="absolute inset-x-0 top-[max(0.6rem,env(safe-area-inset-top))] flex flex-col items-center gap-2 px-3">
-        <TopPill world={world} state={state} onWhere={() => setTab('map')} />
+        <TopPill
+          world={world}
+          state={state}
+          balance={mp.room.life?.balance}
+          onWhere={() => setTab('map')}
+          onBank={() => setTab('bank')}
+        />
         <WaypointBar world={world} state={state} />
+        <ActivityBar mp={mp} />
         <ConnectionPill status={mp.room.status} reason={mp.room.reason} />
       </div>
 
       <div
         className={`absolute left-3 flex flex-col gap-2 pt-1 transition-[top] duration-200 ${columnTop}`}
       >
-        <Needs />
+        <NeedsPanel needs={mp.room.life?.needs} />
+        <TutorialChip life={mp.room.life} onOpen={() => setTab('me')} />
         <ChatFeed lines={mp.room.lines} />
       </div>
       <div
@@ -331,11 +375,7 @@ export function Hud({
             {state.action && (
               <button
                 className="rounded-full bg-[#ff7a1a] px-5 py-3 text-sm font-extrabold text-white shadow-[0_6px_18px_rgba(255,122,26,0.45)] active:scale-95"
-                onClick={() =>
-                  show(
-                    `${state.action!.label.replace(/^Enter /, 'Inside ')} opens in Phase 3. Interiors come with homes.`,
-                  )
-                }
+                onClick={() => openAction(state.action!.poiId)}
               >
                 {state.action.label}
               </button>
@@ -369,7 +409,17 @@ export function Hud({
           >
             <header className="flex items-center justify-between px-5 pb-2 pt-4">
               <h2 className="font-display text-xl font-extrabold">
-                {{ me: 'Me', buy: 'Buy', map: 'Map', phone: 'Phone', chat: 'Chat' }[tab]}
+                {tab === 'venue' && venue
+                  ? venue.name
+                  : {
+                      me: 'Me',
+                      buy: 'Buy',
+                      map: 'Map',
+                      phone: 'Phone',
+                      chat: 'Chat',
+                      bank: 'Bank',
+                      venue: 'Place',
+                    }[tab]}
               </h2>
               <button
                 aria-label="Close"
@@ -386,10 +436,18 @@ export function Hud({
                   content={content}
                   guestLabel={guestLabel}
                   onOpenDownloads={onOpenDownloads}
-                  account={<AccountSection mp={mp} name={name} onRename={onRename} />}
+                  account={
+                    <>
+                      <CareerCard life={mp.room.life} />
+                      <HousingSection mp={mp} />
+                      <AccountSection mp={mp} name={name} onRename={onRename} />
+                    </>
+                  }
                 />
               )}
               {tab === 'chat' && <ChatSheet mp={mp} />}
+              {tab === 'bank' && <BankSheet mp={mp} />}
+              {tab === 'venue' && venue && <VenueSheet poi={venue} mp={mp} />}
               {tab === 'map' && (
                 <MapPanel
                   world={world}
@@ -400,14 +458,7 @@ export function Hud({
                   }}
                 />
               )}
-              {tab === 'buy' && (
-                <SoonPanel
-                  icon="bag"
-                  title="Shops open with the economy"
-                  phase="Phase 3"
-                  text="Clothes, furniture and food are bought here once jobs and money work."
-                />
-              )}
+              {tab === 'buy' && <ShopSheet mp={mp} />}
               {tab === 'phone' && (
                 <SoonPanel
                   icon="phone"

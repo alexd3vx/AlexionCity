@@ -72,6 +72,8 @@ export interface WorldOptions {
   /** Freeze the time of day, in minutes since midnight. Used for screenshots and tests. */
   fixedMinutes?: number;
   seed?: number;
+  /** Where to stand at the start: a point, or the name of a place. Used by tests; ignored when it names nothing. */
+  start?: { x: number; z: number } | { place: string };
   /** Page element drawn over the canvas that holds name tags and chat bubbles. */
   overlay?: HTMLElement;
 }
@@ -135,7 +137,7 @@ const ACTION_LABEL: Record<PoiIcon, (name: string) => string | undefined> = {
   home: () => 'Go inside',
   atm: () => 'Use ATM',
   bus: () => 'Wait for the bus',
-  park: () => undefined,
+  park: () => 'Sit and relax',
 };
 
 export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): World {
@@ -222,8 +224,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions): W
   let arrived: { name: string; until: number } | undefined;
 
   let input: Input = { x: 0, y: 0, run: false };
-  let px = layout.spawn.x;
-  let pz = layout.spawn.z;
+  const startAt =
+    options.start && 'place' in options.start
+      ? layout.pois.find((p) => p.name === (options.start as { place: string }).place)
+      : (options.start as { x: number; z: number } | undefined);
+  let px = startAt?.x ?? layout.spawn.x;
+  let pz = startAt?.z ?? layout.spawn.z;
   let facing = layout.spawn.yaw;
   let camYaw = layout.spawn.yaw;
   let camYawTarget = camYaw;

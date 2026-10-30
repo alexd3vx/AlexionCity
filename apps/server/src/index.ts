@@ -1,3 +1,4 @@
+import { isBackgroundId } from '@alexioncity/shared';
 import { verifierFromEnv } from './auth';
 import { GameServer } from './game';
 import { startServer } from './server';
@@ -24,6 +25,10 @@ const store: Store = supabase
   ? new SupabaseStore(env.SUPABASE_URL!, env.SUPABASE_SECRET_KEY!)
   : new MemoryStore();
 
+// knobs for testing only; ignored in production
+const dev = env.NODE_ENV !== 'production';
+const testing = dev && isBackgroundId(env.DEV_BACKGROUND) ? { background: env.DEV_BACKGROUND } : {};
+
 const lifeStore: LifeStore = supabase
   ? new SupabaseLifeStore(env.SUPABASE_URL!, env.SUPABASE_SECRET_KEY!)
   : new MemoryLifeStore();
@@ -31,7 +36,12 @@ const lifeStore: LifeStore = supabase
 const server = await startServer({
   port,
   allowedOrigins,
-  game: new GameServer({ verifier, store, life: new LifeService({ store: lifeStore }) }),
+  ...(dev && env.LIFE_TICK_MS ? { lifeTickMs: Number(env.LIFE_TICK_MS) } : {}),
+  game: new GameServer({
+    verifier,
+    store,
+    life: new LifeService({ store: lifeStore, ...testing }),
+  }),
 });
 console.log(
   `game server listening on :${server.port} | origins: ${allowedOrigins.join(', ') || 'any'} | ` +

@@ -71,6 +71,65 @@ describe('roomReducer', () => {
   });
 });
 
+describe('life messages', () => {
+  const life = {
+    balance: 2500,
+    needs: { hunger: 80, energy: 85, mood: 70, hygiene: 85 },
+    background: 'comfortable',
+    debt: 0,
+    totalShifts: 0,
+    careers: {},
+    home: { unit: 'studio', inside: false, layout: [], comfort: 0 },
+    owned: {},
+    bills: { dueIn: 3600, lines: [], total: 0, overdue: 0, owing: 0 },
+    tutorial: {},
+  } as const;
+
+  it('keeps the latest life and when it arrived', () => {
+    const s = roomReducer(initialRoom, {
+      type: 'message',
+      message: { t: 'life', life: life as never },
+      muted: none,
+      at: 1234,
+    });
+    expect(s.life?.balance).toBe(2500);
+    expect(s.lifeAt).toBe(1234);
+    const next = roomReducer(s, {
+      type: 'message',
+      message: { t: 'life', life: { ...life, balance: 10 } as never },
+      muted: none,
+      at: 1300,
+    });
+    expect(next.life?.balance).toBe(10);
+  });
+
+  it('keeps the life shown while the connection drops', () => {
+    let s = msg(initialRoom, { t: 'life', life: life as never });
+    s = roomReducer(s, { type: 'status', status: 'reconnecting' });
+    expect(s.life?.balance).toBe(2500);
+  });
+
+  it('keeps the statement the server sends', () => {
+    const rows = [{ at: 1, delta: -6, balance: 94, reason: 'Pizza slice' }];
+    expect(msg(initialRoom, { t: 'statement', rows }).statement).toEqual(rows);
+  });
+
+  it('keeps every notice in order, so two that arrive together are both shown', () => {
+    let s = msg(initialRoom, { t: 'notice', text: 'Shift done: +₳38.', level: 'info' });
+    s = msg(s, { t: 'notice', text: 'Done: Work a shift.', level: 'info' });
+    expect(s.notices.map((n) => n.text)).toEqual(['Shift done: +₳38.', 'Done: Work a shift.']);
+    expect(s.notices[1]!.key).toBeGreaterThan(s.notices[0]!.key);
+    expect(s.notice?.text).toBe('Done: Work a shift.');
+  });
+
+  it('does not keep an endless list of notices', () => {
+    let s = initialRoom;
+    for (let i = 0; i < 30; i++) s = msg(s, { t: 'notice', text: `n${i}`, level: 'info' });
+    expect(s.notices.length).toBeLessThanOrEqual(8);
+    expect(s.notices.at(-1)?.text).toBe('n29');
+  });
+});
+
 describe('rejectionText', () => {
   it('speaks plainly', () => {
     expect(rejectionText('banned')).toMatch(/suspended/);

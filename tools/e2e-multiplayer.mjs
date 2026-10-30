@@ -2,69 +2,17 @@
 // each other. Starts its own game server (memory store, dev guests) and client, so it needs no setup.
 //   pnpm e2e            runs it
 //   E2E_SHOTS=dir       also saves screenshots there
-import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
-import { chromium } from 'playwright';
-
-const SERVER_PORT = 8791;
-const CLIENT_PORT = 5199;
-const shots = process.env.E2E_SHOTS;
-if (shots) mkdirSync(shots, { recursive: true });
-
-const children = new Set();
-function run(cmd, args, env) {
-  const child = spawn(cmd, args, {
-    env: { ...process.env, ...env },
-    stdio: 'ignore',
-    detached: true,
-  });
-  children.add(child);
-  return child;
-}
-function stop(child) {
-  children.delete(child);
-  try {
-    process.kill(-child.pid);
-  } catch {
-    // already gone
-  }
-}
-const stopAll = () => [...children].forEach(stop);
-
-async function waitFor(url, what, ms = 60_000) {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    try {
-      if ((await fetch(url)).ok) return;
-    } catch {
-      // not up yet
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  throw new Error(`${what} did not start`);
-}
-
-let failures = 0;
-async function step(name, fn) {
-  try {
-    await fn();
-    console.log(`  ok   ${name}`);
-  } catch (e) {
-    failures++;
-    console.log(`  FAIL ${name}\n       ${String(e.message).split('\n')[0]}`);
-  }
-}
-
-const withPacks = Boolean(process.env.E2E_PACKS);
-
-async function join(browser, name) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 780 } });
-  await context.addInitScript((n) => localStorage.setItem('alexion.name', n), name);
-  const page = await context.newPage();
-  await page.goto(`http://localhost:${CLIENT_PORT}/?t=12:00${withPacks ? '&autodl' : ''}`);
-  await page.getByRole('button', { name: /^Chat, Online/ }).waitFor({ timeout: 30_000 });
-  return page;
-}
+//   E2E_PACKS=1         also checks real avatars (needs `pnpm assets:build` first)
+import {
+  fail,
+  finish,
+  join as joinGame,
+  shots,
+  startStack,
+  step,
+  stop,
+  withPacks,
+} from './e2e-lib.mjs';
 
 const tag = (page, name) => page.locator('div', { hasText: new RegExp(`^${name}$`) }).last();
 
@@ -76,42 +24,9 @@ async function say(page, text) {
 }
 
 try {
-  const startServer = () =>
-    run('pnpm', ['--filter', '@alexioncity/server', 'exec', 'tsx', 'src/index.ts'], {
-      PORT: String(SERVER_PORT),
-      ALLOW_DEV_GUESTS: '1',
-      SUPABASE_URL: '',
-      SUPABASE_SECRET_KEY: '',
-    });
-  let server = startServer();
-  run(
-    'pnpm',
-    [
-      '--filter',
-      '@alexioncity/client',
-      'exec',
-      'vite',
-      '--port',
-      String(CLIENT_PORT),
-      '--strictPort',
-    ],
-    {
-      VITE_SUPABASE_URL: '',
-      VITE_SUPABASE_PUBLISHABLE_KEY: '',
-      VITE_GAME_WS_URL: `ws://localhost:${SERVER_PORT}`,
-    },
-  );
-  await waitFor(`http://localhost:${SERVER_PORT}/healthz`, 'game server');
-  await waitFor(`http://localhost:${CLIENT_PORT}/`, 'client');
-
-  const browser = await chromium.launch({
-    args: [
-      '--use-gl=angle',
-      '--use-angle=swiftshader',
-      '--enable-unsafe-swiftshader',
-      '--ignore-gpu-blocklist',
-    ],
-  });
+  const stack = await startStack();
+  const { browser } = stack;
+  const join = (b, name) => joinGame(b, name);
   console.log('Two players in one channel');
   const ada = await join(browser, 'Ada');
   const bo = await join(browser, 'Bo');
@@ -207,19 +122,15 @@ try {
 
   await step('the game reconnects by itself when the server comes back', async () => {
     const back = await join(browser, 'Cy');
-    stop(server);
+    stop(stack.server);
     await back.getByText('Reconnecting to the city…').waitFor({ timeout: 15_000 });
-    server = startServer();
+    stack.server = stack.startServer();
     await back.getByRole('button', { name: /^Chat, Online/ }).waitFor({ timeout: 40_000 });
   });
 
   await browser.close();
 } catch (e) {
-  failures++;
-  console.error(e);
-} finally {
-  stopAll();
+  fail(e);
 }
 
-console.log(failures === 0 ? '\nALL MULTIPLAYER CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
-process.exit(failures === 0 ? 0 : 1);
+finish('MULTIPLAYER');

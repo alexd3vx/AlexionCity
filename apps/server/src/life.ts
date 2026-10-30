@@ -31,6 +31,7 @@ import {
   UNITS,
   useRate,
   type ActivityKind,
+  type BackgroundId,
   type ClientMessage,
   type JobId,
   type LifeSnapshot,
@@ -132,6 +133,8 @@ export interface LifeOptions {
   store: LifeStore;
   random?: () => number;
   id?: () => string;
+  /** Give every new character this background instead of a random one. For testing. */
+  background?: BackgroundId;
 }
 
 /**
@@ -159,7 +162,7 @@ export class LifeService {
     try {
       let loaded = await this.opts.store.loadLife(userId);
       if (!loaded) {
-        const bg = BACKGROUNDS[randomBackground(this.random)];
+        const bg = BACKGROUNDS[this.opts.background ?? randomBackground(this.random)];
         const layout: Placed[] = bg.starter.map((s) => ({ id: this.uid(), ...s }));
         const items = [...placedCounts(layout)].map(([item, qty]) => ({ item: toDb(item), qty }));
         await this.opts.store.createCharacter(userId, {

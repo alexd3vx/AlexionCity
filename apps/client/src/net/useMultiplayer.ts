@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { type Emote, type Peer, type ReportReason } from '@alexioncity/shared';
+import type {
+  ActivityKind,
+  Emote,
+  JobId,
+  Peer,
+  ReportReason,
+  Rotation,
+  UnitId,
+} from '@alexioncity/shared';
 import { supabase, type GuestSession } from '../auth/guest';
 import type { AvatarSpec } from '../avatar/catalog';
 import { config } from '../config';
@@ -37,8 +45,26 @@ async function credentialsFor(guest: GuestSession): Promise<Credentials> {
   return { guestId: guest.id };
 }
 
+/** Everything the player can ask for in their life. The server decides whether it happens. */
+export interface LifeActions {
+  order(item: string): void;
+  work(job: JobId): void;
+  quitJob(): void;
+  start(kind: ActivityKind): void;
+  stop(): void;
+  buy(item: string, qty?: number): void;
+  home(op: 'enter' | 'exit'): void;
+  place(item: string, x: number, z: number, rot: Rotation): void;
+  moveItem(id: string, x: number, z: number, rot: Rotation): void;
+  storeItem(id: string): void;
+  payBills(): void;
+  moveUnit(unit: UnitId): void;
+  statement(): void;
+}
+
 export interface Multiplayer {
   room: RoomState;
+  act: LifeActions;
   /** The player whose card is open, if any. */
   selected: Peer | undefined;
   select(id: string | undefined): void;
@@ -132,7 +158,7 @@ export function useMultiplayer(
             world.teleport(m.x, m.z);
             break;
         }
-        dispatch({ type: 'message', message: m, muted: muted.current });
+        dispatch({ type: 'message', message: m, muted: muted.current, at: Date.now() });
       }),
       world.onLocal((pose) => gc.updateLocal(pose)),
       world.onAvatarChange((spec) => void gc.setAvatar(spec)),
@@ -161,6 +187,21 @@ export function useMultiplayer(
       select,
       chat: (text) => void client.current?.chat(text),
       emote: (emote) => void client.current?.emote(emote),
+      act: {
+        order: (item) => void client.current?.send({ t: 'order', item }),
+        work: (job) => void client.current?.send({ t: 'work', job }),
+        quitJob: () => void client.current?.send({ t: 'quit_job' }),
+        start: (kind) => void client.current?.send({ t: 'start', kind }),
+        stop: () => void client.current?.send({ t: 'stop' }),
+        buy: (item, qty = 1) => void client.current?.send({ t: 'buy', item, qty }),
+        home: (op) => void client.current?.send({ t: 'home', op }),
+        place: (item, x, z, rot) => void client.current?.send({ t: 'place', item, x, z, rot }),
+        moveItem: (id, x, z, rot) => void client.current?.send({ t: 'move_item', id, x, z, rot }),
+        storeItem: (id) => void client.current?.send({ t: 'store_item', id }),
+        payBills: () => void client.current?.send({ t: 'pay_bills' }),
+        moveUnit: (unit) => void client.current?.send({ t: 'move_unit', unit }),
+        statement: () => void client.current?.send({ t: 'statement' }),
+      },
       mute: (id) => (muted.current.add(id), bump()),
       unmute: (id) => (muted.current.delete(id), bump()),
       isMuted: (id) => muted.current.has(id),
