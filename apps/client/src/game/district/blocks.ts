@@ -1,9 +1,16 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { QualityTier } from '@alexioncity/shared';
+import {
+  DISTRICT_PACKS,
+  MODELS,
+  PITCH,
+  dims,
+  type Layout,
+  type ModelId,
+  type Placement,
+  type QualityTier,
+} from '@alexioncity/shared';
 import type { AssetStore } from '../assets';
-import { PITCH, type Layout, type Placement } from './layout';
-import { dims, DISTRICT_PACKS, MODELS, type ModelId } from './models';
 import {
   bakeUntextured,
   hasTexture,

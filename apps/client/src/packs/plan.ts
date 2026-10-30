@@ -1,5 +1,4 @@
-import type { PackFile, PackManifest, PackManifestEntry } from '@alexioncity/shared';
-
+import { type PackFile, type PackManifest, type PackManifestEntry } from '@alexioncity/shared';
 /** What this device already holds: pack id -> version and the hash of each file. */
 export type InstalledPacks = Record<string, { version: string; files: Record<string, string> }>;
 

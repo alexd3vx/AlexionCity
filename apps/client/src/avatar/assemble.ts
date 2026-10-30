@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { AvatarCatalog } from '@alexioncity/shared';
+import { type AvatarCatalog } from '@alexioncity/shared';
 import type { AssetStore } from '../game/assets';
 import { frameOf, HAIR_COLORS, SKIN_TONES, SLOTS, swatch, type AvatarSpec } from './catalog';
 

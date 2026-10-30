@@ -4,3 +4,6 @@ export * from './tokens';
 export * from './movement';
 export * from './protocol';
 export * from './names';
+export * from './world/collision';
+export * from './world/models';
+export * from './world/layout';

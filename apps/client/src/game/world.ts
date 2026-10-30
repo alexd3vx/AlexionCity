@@ -1,21 +1,25 @@
 import * as THREE from 'three';
-import type {
-  AvatarCatalog,
-  Emote,
-  Motion,
-  MoveMode,
-  Peer,
-  PosUpdate,
-  QualityTier,
+import {
+  DISTRICT_PACKS,
+  generateLayout,
+  resolveBoxes,
+  resolveCircles,
+  type AvatarCatalog,
+  type Emote,
+  type Layout,
+  type Motion,
+  type MoveMode,
+  type Peer,
+  type Poi,
+  type PoiIcon,
+  type PosUpdate,
+  type QualityTier,
 } from '@alexioncity/shared';
 import { assembleAvatar, AVATAR_HEIGHT, type Avatar } from '../avatar/assemble';
 import type { AvatarSpec } from '../avatar/catalog';
 import type { AssetStore } from './assets';
 import { approachAngle, cameraPose, nextView, type ViewMode } from './cameras';
-import { resolveBoxes, resolveCircles } from './collision';
 import { nowMinutes, skyAt } from './daynight';
-import { generateLayout, type Layout, type Poi, type PoiIcon } from './district/layout';
-import { DISTRICT_PACKS } from './district/models';
 import { createDistrictView, type DistrictView } from './district/blocks';
 import { buildBase } from './district/scene';
 import { Labels } from './labels';

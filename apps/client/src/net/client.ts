@@ -8,7 +8,6 @@ import {
   type ReportReason,
   type ServerMessage,
 } from '@alexioncity/shared';
-
 export type NetStatus = 'offline' | 'connecting' | 'online' | 'reconnecting' | 'rejected';
 
 export type NetEvent =

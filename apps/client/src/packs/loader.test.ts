@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import type { PackManifest } from '@alexioncity/shared';
+import { type PackManifest } from '@alexioncity/shared';
 import { HashMismatchError, PackLoader } from './loader';
 import type { InstalledPacks } from './plan';
 

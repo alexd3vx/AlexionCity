@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import type { Emote, Peer, ReportReason } from '@alexioncity/shared';
+import { type Emote, type Peer, type ReportReason } from '@alexioncity/shared';
 import { supabase, type GuestSession } from '../auth/guest';
 import type { AvatarSpec } from '../avatar/catalog';
 import { config } from '../config';

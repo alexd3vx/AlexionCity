@@ -1,4 +1,4 @@
-import type { Layout } from '../../game/district/layout';
+import { type Layout } from '@alexioncity/shared';
 import type { WorldState } from '../../game/world';
 
 export interface MapStyle {

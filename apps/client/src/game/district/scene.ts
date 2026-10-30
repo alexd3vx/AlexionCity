@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { QualityTier } from '@alexioncity/shared';
-import type { Layout, Placement, Rect } from './layout';
-import { dims, MODELS, type ModelId } from './models';
-
+import {
+  MODELS,
+  dims,
+  type Layout,
+  type ModelId,
+  type Placement,
+  type QualityTier,
+  type Rect,
+} from '@alexioncity/shared';
 export interface Built {
   group: THREE.Group;
   /** 0 in daylight to 1 at night: lamps and (for stand-ins) windows glow. */

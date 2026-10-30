@@ -1,12 +1,14 @@
 import * as THREE from 'three';
-import type { AvatarCatalog, QualityTier } from '@alexioncity/shared';
+import {
+  PITCH,
+  mulberry32,
+  type AvatarCatalog,
+  type Layout,
+  type QualityTier,
+} from '@alexioncity/shared';
 import { assembleAvatar, type Avatar } from '../avatar/assemble';
 import { randomSpec } from '../avatar/catalog';
 import type { AssetStore } from './assets';
-import { PITCH } from './district/layout';
-import type { Layout } from './district/layout';
-import { mulberry32 } from './district/layout';
-
 /** Pavement loop around a block: a square of half-size `half`, walked clockwise or the other way. */
 export interface Loop {
   cx: number;

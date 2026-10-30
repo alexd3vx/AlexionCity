@@ -1,5 +1,4 @@
-import type { PoiIcon } from '../../game/district/layout';
-
+import { type PoiIcon } from '@alexioncity/shared';
 const PATHS = {
   home: 'M4 11l8-7 8 7v9H4z M10 20v-6h4v6',
   pin: 'M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z M12 12.2a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z',

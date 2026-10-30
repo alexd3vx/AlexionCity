@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PackManifest } from '@alexioncity/shared';
+import { type PackManifest } from '@alexioncity/shared';
 import { formatBytes, planUpdate, requiredFirst } from './plan';
 
 const manifest: PackManifest = {

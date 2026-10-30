@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ServerMessage } from '@alexioncity/shared';
+import { type ServerMessage } from '@alexioncity/shared';
 import { initialRoom, MAX_LINES, rejectionText, roomReducer, type RoomState } from './room';
 
 const none = new Set<string>();

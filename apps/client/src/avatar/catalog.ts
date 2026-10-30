@@ -1,5 +1,9 @@
-import type { AvatarCatalog, AvatarFrame, AvatarPart, AvatarSpec } from '@alexioncity/shared';
-
+import {
+  type AvatarCatalog,
+  type AvatarFrame,
+  type AvatarPart,
+  type AvatarSpec,
+} from '@alexioncity/shared';
 export const SLOTS: readonly AvatarPart[] = ['head', 'body', 'legs', 'feet'];
 
 export type { AvatarSpec };

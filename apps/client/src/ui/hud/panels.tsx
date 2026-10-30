@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { AvatarPart } from '@alexioncity/shared';
+import { type AvatarPart, type PoiIcon } from '@alexioncity/shared';
 import {
   frameOf,
   HAIR_COLORS,
@@ -14,7 +14,6 @@ import {
   type Swatch,
 } from '../../avatar/catalog';
 import type { Content } from '../../game/content';
-import type { PoiIcon } from '../../game/district/layout';
 import type { World, WorldState } from '../../game/world';
 import { config } from '../../config';
 import { Icon, type IconName } from './icons';

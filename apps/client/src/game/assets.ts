@@ -1,4 +1,4 @@
-import type { PackManifest } from '@alexioncity/shared';
+import { type PackManifest } from '@alexioncity/shared';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { PackLoader } from '../packs/loader';

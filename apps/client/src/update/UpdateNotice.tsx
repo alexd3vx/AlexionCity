@@ -1,8 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import type { WhatsNewItem } from '@alexioncity/shared';
-
+import { type WhatsNewItem } from '@alexioncity/shared';
 /**
  * Shows an animated "update available" card with what is new. The old version keeps running until
  * the player taps Update, so a live session is never reloaded without warning.

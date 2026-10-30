@@ -1,4 +1,4 @@
-import type { AvatarCatalog } from '@alexioncity/shared';
+import { type AvatarCatalog } from '@alexioncity/shared';
 import { loadSpec, randomSpec, saveSpec, type AvatarSpec } from '../avatar/catalog';
 import type { PackLoader } from '../packs/loader';
 import { AssetStore } from './assets';

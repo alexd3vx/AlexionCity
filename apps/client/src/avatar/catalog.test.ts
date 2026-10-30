@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AvatarCatalog } from '@alexioncity/shared';
+import { type AvatarCatalog } from '@alexioncity/shared';
 import {
   defaultSpec,
   HAIR_COLORS,

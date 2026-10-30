@@ -1,5 +1,5 @@
 import { createStore, get, set, type UseStore } from 'idb-keyval';
-import type { PackManifest } from '@alexioncity/shared';
+import { type PackManifest } from '@alexioncity/shared';
 import { planUpdate, type InstalledPacks, type PackPlan, type UpdatePlan } from './plan';
 
 const CACHE_NAME = 'alexion-packs-v1';

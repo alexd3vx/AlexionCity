@@ -1,5 +1,5 @@
-import { SPAWN } from '@alexioncity/shared';
-import type { Box, Circle } from '../collision';
+import { SPAWN } from '../constants';
+import type { Box, Circle } from './collision';
 
 export type { Box };
 import { dims, type ModelId } from './models';

@@ -77,12 +77,13 @@ describe('websocket server', () => {
     const b = await open(running.port);
     const aWelcome = waitFor(a, 'welcome');
     const bWelcome = waitFor(b, 'welcome');
+    // listen before anyone joins: the news of Bola can arrive as soon as she does
+    const seen = waitFor(a, 'peers');
     join(a, 'Ada', 'guest-aaaa-1111');
     join(b, 'Bola', 'guest-bbbb-2222');
     expect((await aWelcome).channel).toBe('downtown-1');
     await bWelcome;
 
-    const seen = waitFor(a, 'peers');
     expect((await seen).add[0]?.name).toBe('Bola');
 
     const heard = waitFor(b, 'chat');

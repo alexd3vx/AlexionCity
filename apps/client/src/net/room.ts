@@ -1,4 +1,4 @@
-import type { BlockEntry, ServerMessage } from '@alexioncity/shared';
+import { type BlockEntry, type ServerMessage } from '@alexioncity/shared';
 import type { NetStatus } from './client';
 
 export interface ChatLine {

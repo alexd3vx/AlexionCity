@@ -1,6 +1,12 @@
 import * as THREE from 'three';
-import type { AvatarCatalog, Emote, Peer, PosUpdate, QualityTier } from '@alexioncity/shared';
-import { MOTION_CODES } from '@alexioncity/shared';
+import {
+  MOTION_CODES,
+  type AvatarCatalog,
+  type Emote,
+  type Peer,
+  type PosUpdate,
+  type QualityTier,
+} from '@alexioncity/shared';
 import { assembleAvatar, AVATAR_HEIGHT, type Avatar } from '../avatar/assemble';
 import { HAIR_COLORS, SKIN_TONES, swatch, type AvatarSpec } from '../avatar/catalog';
 import type { AssetStore } from './assets';

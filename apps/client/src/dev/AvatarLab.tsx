@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import type { AvatarCatalog, AvatarPart } from '@alexioncity/shared';
+import { type AvatarCatalog, type AvatarPart } from '@alexioncity/shared';
 import { assembleAvatar, type Avatar } from '../avatar/assemble';
 import { HAIR_COLORS, SKIN_TONES, type AvatarSpec } from '../avatar/catalog';
 import { config } from '../config';

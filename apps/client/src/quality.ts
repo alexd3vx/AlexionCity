@@ -1,5 +1,4 @@
-import type { QualityTier } from '@alexioncity/shared';
-
+import { type QualityTier } from '@alexioncity/shared';
 export interface DeviceHints {
   /** navigator.deviceMemory, in GB (Chromium only, rounded down to a power of two, capped at 8). */
   deviceMemory?: number | undefined;
