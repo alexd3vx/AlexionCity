@@ -1,8 +1,27 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { PackManifest, QualityTier } from '@alexioncity/shared';
+import { NodeIO } from '@gltf-transform/core';
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import type { AvatarCatalog, AvatarFrame, AvatarPart } from '@alexioncity/shared';
+import { extractRig, splitCharacter } from './avatars';
 import { buildPacks, type PackDefinition } from './manifest';
 import { optimizeGlb } from './optimize';
+
+export interface AvatarOutfitConfig {
+  id: string;
+  name: string;
+  /** Source file, relative to raw/. */
+  file: string;
+  tags: string[];
+}
+
+export interface AvatarFrameConfig {
+  id: string;
+  /** The skeleton and animations come from this file. */
+  rigFrom: string;
+  outfits: AvatarOutfitConfig[];
+}
 
 export interface PackConfig {
   id: string;
@@ -11,9 +30,11 @@ export interface PackConfig {
   required: boolean;
   tier?: QualityTier;
   /** Raw files to include: exact paths, or a folder written as `folder/*`. Paths are relative to raw/. */
-  include: string[];
+  include?: string[];
   /** Fraction of triangles to keep for this pack, 1 = compress only. */
   ratio?: number;
+  /** Makes this an avatar pack: characters are split into parts and one rig per frame. */
+  avatars?: { frames: AvatarFrameConfig[] };
 }
 
 export interface BuildConfig {
@@ -45,6 +66,69 @@ export function resolveInclude(include: readonly string[], rawFiles: readonly st
   return [...out].sort();
 }
 
+/** Pick the idle, walk and run clips by name, ignoring variants such as Idle_Gun or Run_Back. */
+export function pickClips(names: readonly string[]): AvatarFrame['clips'] {
+  const find = (suffix: string) => {
+    const hit = names.find((n) => n.toLowerCase().endsWith(suffix));
+    if (!hit) throw new Error(`rig has no "${suffix}" clip; clips are: ${names.join(', ')}`);
+    return hit;
+  };
+  return { idle: find('idle'), walk: find('walk'), run: find('run') };
+}
+
+async function buildAvatarFiles(
+  rawDir: string,
+  workDir: string,
+  frames: AvatarFrameConfig[],
+): Promise<{ files: string[]; before: number; after: number }> {
+  const files: string[] = [];
+  let before = 0;
+  let after = 0;
+  const catalog: AvatarCatalog = { schema: 1, frames: [] };
+
+  const write = async (rel: string, glb: Uint8Array, sourceBytes: number) => {
+    const optimized = await optimizeGlb(glb);
+    const dest = path.join(workDir, rel);
+    await mkdir(path.dirname(dest), { recursive: true });
+    await writeFile(dest, optimized.glb);
+    files.push(rel);
+    before += sourceBytes;
+    after += optimized.bytesAfter;
+  };
+
+  for (const frame of frames) {
+    const rigSource = new Uint8Array(await readFile(path.join(rawDir, frame.rigFrom)));
+    const rigGlb = await extractRig(rigSource);
+    await write(`${frame.id}/rig.glb`, rigGlb, rigSource.byteLength);
+    const rigDoc = await new NodeIO().registerExtensions(ALL_EXTENSIONS).readBinary(rigGlb);
+    const clips = pickClips(
+      rigDoc
+        .getRoot()
+        .listAnimations()
+        .map((a) => a.getName()),
+    );
+
+    const outfits: AvatarFrame['outfits'] = [];
+    for (const outfit of frame.outfits) {
+      const source = new Uint8Array(await readFile(path.join(rawDir, outfit.file)));
+      const { parts } = await splitCharacter(source);
+      const paths: Partial<Record<AvatarPart, string>> = {};
+      for (const [slot, glb] of Object.entries(parts) as [AvatarPart, Uint8Array][]) {
+        const rel = `${frame.id}/${outfit.id}-${slot}.glb`;
+        await write(rel, glb, 0);
+        paths[slot] = rel;
+      }
+      before += source.byteLength; // count each source character once
+      outfits.push({ id: outfit.id, name: outfit.name, tags: outfit.tags, parts: paths });
+    }
+    catalog.frames.push({ id: frame.id, rig: `${frame.id}/rig.glb`, clips, outfits });
+  }
+
+  await writeFile(path.join(workDir, 'catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`);
+  files.push('catalog.json');
+  return { files, before, after };
+}
+
 export interface BuildAllOptions {
   rawDir: string;
   workDir: string;
@@ -61,7 +145,23 @@ export async function buildAll(opts: BuildAllOptions): Promise<PackManifest> {
   const defs: PackDefinition[] = [];
 
   for (const pack of opts.config.packs) {
-    const files = resolveInclude(pack.include, opts.rawFiles);
+    if (pack.avatars) {
+      const built = await buildAvatarFiles(opts.rawDir, opts.workDir, pack.avatars.frames);
+      log(
+        `${pack.id}: ${pack.avatars.frames.reduce((n, f) => n + f.outfits.length, 0)} outfit(s) split into parts, ` +
+          `${(built.before / 1e6).toFixed(1)} MB -> ${(built.after / 1e6).toFixed(1)} MB`,
+      );
+      defs.push({
+        id: pack.id,
+        title: pack.title,
+        version: pack.version,
+        required: pack.required,
+        ...(pack.tier ? { tier: pack.tier } : {}),
+        files: built.files,
+      });
+      continue;
+    }
+    const files = resolveInclude(pack.include ?? [], opts.rawFiles);
     const outFiles: string[] = [];
     let before = 0;
     let after = 0;

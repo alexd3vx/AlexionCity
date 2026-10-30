@@ -3,8 +3,14 @@ import { pickQuality, readDeviceHints } from '../quality';
 import { Joystick } from '../ui/Joystick';
 import { createWorld, type World } from './world';
 
+declare global {
+  interface Window {
+    __world?: World;
+  }
+}
+
 /** Mounts the 3D world, wires keyboard and touch input, and drag-to-orbit on the canvas. */
-export function GameView() {
+export function GameView({ onWorld }: { onWorld: (world: World | undefined) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const world = useRef<World | null>(null);
@@ -17,8 +23,15 @@ export function GameView() {
 
   useEffect(() => {
     const el = canvas.current!;
-    const w = createWorld(el, pickQuality(readDeviceHints()));
+    const params = new URLSearchParams(location.search);
+    const time = params.get('t')?.match(/^(\d{1,2}):(\d{2})$/);
+    const w = createWorld(el, {
+      tier: pickQuality(readDeviceHints()),
+      ...(time ? { fixedMinutes: Number(time[1]) * 60 + Number(time[2]) } : {}),
+    });
     world.current = w;
+    if (import.meta.env.DEV) window.__world = w;
+    onWorld(w);
 
     const fit = () => {
       const r = box.current!.getBoundingClientRect();
@@ -81,10 +94,11 @@ export function GameView() {
       el.removeEventListener('pointermove', pm);
       el.removeEventListener('pointerup', pu);
       ro.disconnect();
+      onWorld(undefined);
       w.dispose();
       world.current = null;
     };
-  }, []);
+  }, [onWorld]);
 
   return (
     <div ref={box} className="absolute inset-0 touch-none select-none">

@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ensureGuest, type GuestSession } from './auth/guest';
 import { config } from './config';
+import { applyContent, openContent } from './game/content';
 import { GameView } from './game/GameView';
+import type { World } from './game/world';
+import { PackLoader } from './packs/loader';
 import { DownloadPage } from './ui/DownloadPage';
 import { Wordmark } from './ui/Wordmark';
 import { UpdateNotice } from './update/UpdateNotice';
@@ -13,6 +16,26 @@ import { UpdateNotice } from './update/UpdateNotice';
 export default function App() {
   const [guest, setGuest] = useState<GuestSession | undefined>();
   const [showDownloads, setShowDownloads] = useState(false);
+  const [world, setWorld] = useState<World | undefined>();
+  const loader = useMemo(() => new PackLoader({ base: config.assetBase }), []);
+
+  // use whatever is downloaded: swap stand-ins for real models and add the avatar and crowd
+  const refreshContent = useCallback(async () => {
+    if (!world) return;
+    const content = await openContent(loader);
+    if (content) await applyContent(world, content);
+  }, [world, loader]);
+  useEffect(() => void refreshContent(), [refreshContent]);
+
+  // developer shortcut: /?autodl downloads every pack at start
+  useEffect(() => {
+    if (!import.meta.env.DEV || !world || !location.search.includes('autodl')) return;
+    void (async () => {
+      const plan = await loader.plan(await loader.fetchManifest());
+      await loader.download(plan.needed);
+      await refreshContent();
+    })();
+  }, [world, loader, refreshContent]);
 
   useEffect(() => {
     void ensureGuest().then(setGuest);
@@ -20,7 +43,7 @@ export default function App() {
 
   return (
     <div className="relative h-dvh w-dvw overflow-hidden bg-slate-900 font-sans">
-      <GameView />
+      <GameView onWorld={setWorld} />
 
       <header className="pointer-events-none absolute inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex justify-center px-3">
         <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-full bg-white/90 px-4 py-2 text-sm font-bold text-slate-900 shadow-lg">
@@ -43,7 +66,13 @@ export default function App() {
         v{config.appVersion}
       </p>
 
-      {showDownloads && <DownloadPage onClose={() => setShowDownloads(false)} />}
+      {showDownloads && (
+        <DownloadPage
+          loader={loader}
+          onChanged={() => void refreshContent()}
+          onClose={() => setShowDownloads(false)}
+        />
+      )}
       <UpdateNotice />
     </div>
   );

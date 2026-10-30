@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
-import { PackLoader } from '../packs/loader';
+import type { PackLoader } from '../packs/loader';
 import { formatBytes, requiredFirst, type PackPlan } from '../packs/plan';
-import { config } from '../config';
 
 type Status =
   | { kind: 'loading' }
   | { kind: 'unavailable'; message: string }
   | { kind: 'ready'; plans: PackPlan[]; current: string[] };
 
-export function DownloadPage({ onClose }: { onClose: () => void }) {
-  const [loader] = useState(() => new PackLoader({ base: config.assetBase }));
+export function DownloadPage({
+  loader,
+  onChanged,
+  onClose,
+}: {
+  loader: PackLoader;
+  /** Called after a download finishes, so the world can use the new content straight away. */
+  onChanged: () => void;
+  onClose: () => void;
+}) {
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
   const [busy, setBusy] = useState<string | undefined>();
   const [progress, setProgress] = useState(0);
@@ -36,6 +43,7 @@ export function DownloadPage({ onClose }: { onClose: () => void }) {
     setProgress(0);
     try {
       await loader.download(plans, (p) => setProgress(p.doneBytes / p.totalBytes));
+      onChanged();
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Download failed');

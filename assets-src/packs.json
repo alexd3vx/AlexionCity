@@ -3,9 +3,150 @@
     {
       "id": "avatars",
       "title": "Avatar parts",
-      "version": "1",
+      "version": "2",
       "required": true,
-      "include": ["modular-men/*", "modular-women/*"]
+      "avatars": {
+        "frames": [
+          {
+            "id": "a",
+            "rigFrom": "modular-men/Casual Character.glb",
+            "outfits": [
+              {
+                "id": "adventurer",
+                "name": "Adventurer",
+                "file": "modular-men/Adventurer.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "astronaut",
+                "name": "Astronaut",
+                "file": "modular-men/Astronaut.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "beach",
+                "name": "Beach",
+                "file": "modular-men/Beach Character.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "business",
+                "name": "Business",
+                "file": "modular-men/Business Man.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "casual",
+                "name": "Casual",
+                "file": "modular-men/Casual Character.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "farmer",
+                "name": "Farmer",
+                "file": "modular-men/Farmer.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "hoodie",
+                "name": "Hoodie",
+                "file": "modular-men/Hoodie Character.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "king",
+                "name": "King",
+                "file": "modular-men/King.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "punk",
+                "name": "Punk",
+                "file": "modular-men/Punk.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "swat",
+                "name": "Swat",
+                "file": "modular-men/Swat.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "worker",
+                "name": "Worker",
+                "file": "modular-men/Worker.glb",
+                "tags": ["everyday"]
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "rigFrom": "modular-women/Suit.glb",
+            "outfits": [
+              {
+                "id": "adventurer",
+                "name": "Adventurer",
+                "file": "modular-women/Adventurer.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "casual",
+                "name": "Casual",
+                "file": "modular-women/Animated Woman.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "formal",
+                "name": "Formal",
+                "file": "modular-women/Animated Woman-nIItLV9nxS.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "medieval",
+                "name": "Medieval",
+                "file": "modular-women/Medieval.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "punk",
+                "name": "Punk",
+                "file": "modular-women/Punk.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "scifi",
+                "name": "Sci-fi",
+                "file": "modular-women/Sci Fi Character.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "soldier",
+                "name": "Soldier",
+                "file": "modular-women/Soldier.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "suit",
+                "name": "Suit",
+                "file": "modular-women/Suit.glb",
+                "tags": ["everyday"]
+              },
+              {
+                "id": "witch",
+                "name": "Witch",
+                "file": "modular-women/Witch.glb",
+                "tags": ["costume"]
+              },
+              {
+                "id": "worker",
+                "name": "Worker",
+                "file": "modular-women/Worker.glb",
+                "tags": ["everyday"]
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "city-core",
@@ -31,7 +172,12 @@
         "city-pack-1/Building Green.glb",
         "city-pack-1/Building Red.glb",
         "city-pack-1/Brown Building.glb",
-        "city-pack-1/Big Building.glb"
+        "city-pack-1/Big Building.glb",
+        "city-pack-1/ATM.glb",
+        "city-pack-1/Planter & Bushes.glb",
+        "city-pack-1/Stop sign.glb",
+        "city-pack-1/Mailbox.glb",
+        "city-pack-1/Building Red Corner.glb"
       ]
     },
     {

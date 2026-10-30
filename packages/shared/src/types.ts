@@ -69,3 +69,31 @@ export type ServerMessage =
   | { t: 'state'; players: PlayerState[] }
   | { t: 'correct'; seq: number; x: number; z: number }
   | { t: 'error'; code: 'bad_message' | 'bad_district' | 'not_joined' };
+
+/** The slots of an avatar. Each is its own mesh so parts from different outfits can be mixed. */
+export type AvatarPart = 'head' | 'body' | 'legs' | 'feet';
+
+/** Written by the asset pipeline into the avatars pack as catalog.json. */
+export interface AvatarCatalog {
+  schema: 1;
+  frames: AvatarFrame[];
+}
+
+export interface AvatarFrame {
+  /** A body frame: parts only fit characters from the same frame. */
+  id: string;
+  /** Path to the rig (skeleton and animation clips) inside the pack. */
+  rig: string;
+  /** Animation clip names, by role. */
+  clips: { idle: string; walk: string; run: string };
+  outfits: AvatarOutfit[];
+}
+
+export interface AvatarOutfit {
+  id: string;
+  name: string;
+  /** `everyday` outfits are offered at the start; others are unlocks. */
+  tags: string[];
+  /** Pack path of each part's model. */
+  parts: Partial<Record<AvatarPart, string>>;
+}
